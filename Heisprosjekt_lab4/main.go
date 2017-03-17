@@ -26,6 +26,7 @@ scp -r /home/student/Desktop/RettFraKilden2-master/Heisprosjekt_lab4 Student@129
 Endre plassering så du finner main.go
 go run main.go -id=1
 
+ITK2o17-kyb
 
 For ID = 2:
 ssh Student@129.241.187.159

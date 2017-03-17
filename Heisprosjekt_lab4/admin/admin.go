@@ -51,7 +51,18 @@ getAliveLiftsLoop:
 		}
 	}
 
+	inList := false
 	fmt.Println("Adm: aliveLifts etter første loop: ", aliveLifts)
+	for i, peer := range aliveLifts {
+		if peer == ID {
+			inList = true
+		}
+	}
+
+	if !inList {
+		aliveLifts = append(aliveLifts, ID)
+	}
+	fmt.Println("Adm: aliveLifts etter test om egen id finnes der: ", aliveLifts)
 
 searchingForBackupLoop:
 	for {
@@ -66,7 +77,7 @@ searchingForBackupLoop:
 
 		case peerMsg := <-peerChangeChan:
 			switch peerMsg.Change {
-			case "New":
+			case "New": //Må sjekke om peer allerede er i aliveLifts
 				fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
 				if len(aliveLifts) == 1 {
 					backupTChan <- BackUp{"VarAlene", ID, orders, properties}
@@ -277,24 +288,33 @@ initLoop:
 		case backupMsg := <-backupRChan:
 			switch backupMsg.Info {
 			case "IWasAlone":
+				fmt.Println("Adm: Fått ny backup (I was alone). Backup melding: ")
+				fmt.Println(backupMsg)
+				fmt.Println("Adm: Orders before backupcommands: ", orders)
 				// Legg inn alle INDRE ordre for backupMsg.SenderID
 				CopyInnerOrders(orders, ID, backupMsg.Orders, backupMsg.SenderID)
 				// Ta inn properties for backupMsg.SenderID
 				SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
 
+				fmt.Println("Adm: Orders after backupcommands: ", orders)
+
 			case "IWasNotAlone":
+				fmt.Println("Adm: Fått ny backup (I was NOT alone). Backup melding: ")
+				fmt.Println(backupMsg)
+				fmt.Println("Adm: Orders before backupcommands: ", orders)
 				// Skriv over alt i orders minus egne indre ordre.
 				OverwriteEverythingButInternalOrders(orders, ID, backupMsg.Orders)
 
 				// Behold egne properties, skriv over resten.
 				SetPropertiesFromBackup(properties, ID, backupMsg.Properties)
+				fmt.Println("Adm: Orders after backupcommands: ", orders)
 
 			}
 
 		case peerMsg := <-peerChangeChan:
 			switch peerMsg.Change {
 			case "New":
-				fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
+				fmt.Println("Adm: Får inn New peerID. Det er: ", peerMsg.ChangedPeer)
 				if len(aliveLifts) == 1 {
 					backupTChan <- BackUp{"VarAlene", ID, orders, properties}
 				} else {
@@ -304,6 +324,7 @@ initLoop:
 				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] }) //MÅ FIKSES. NB NB NB
 
 			case "Lost":
+				fmt.Println("Adm: Får inn Lost peer. Det er: ", peerMsg.ChangedPeer)
 				for i, n := range aliveLifts {
 					if n == peerMsg.ChangedPeer {
 						lostPeer := n
@@ -317,6 +338,7 @@ initLoop:
 					}
 				}
 			}
+
 
 		}
 	}
