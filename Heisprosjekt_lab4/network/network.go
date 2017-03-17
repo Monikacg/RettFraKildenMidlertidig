@@ -177,7 +177,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			switch backup.SenderID {
 			case ownID:
 				//Send 2-5 times
-				for i := 0; i < numberOfNewMessages; i++ {
+				for i := 0; i < numberOfNewMessages; i++ {//Må sjekke om peer allerede er i aliveLifts
 					backupSenderChan <- backup
 				}
 			//gotBackupFromSomeoneElse
@@ -242,7 +242,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 	// var previousBackup []BackUp LEGG INN HVIS DET FØLES LURT.
 
 	var currentPeers []int //:= make([]int, 0, MAX_N_LIFTS)
-	//currentPeers = append(currentPeers, ownID)
+	currentPeers = append(currentPeers, ownID)
 	// for test:
 	//currentPeers = append(currentPeers, 1)
 
@@ -403,8 +403,10 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 			}
 
 			if len(p.New) > 0 {
+				fmt.Println("NW: Mottatt ny: ", p.New)
+				fmt.Println("NW: currentPeers når mottatt: ", currentPeers)
 				newID, _ := strconv.Atoi(p.New)
-				if newID != ownID {
+				if newID != ownID { // Må endres! vil tydeligvis ha egen id sent til admin i hvert fall.
 					currentPeers = append(currentPeers, newID)
 					sort.Slice(currentPeers, func(i, j int) bool { return currentPeers[i] < currentPeers[j] })
 					peerChangeChan <- Peer{"New", newID}
@@ -414,13 +416,14 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 					currPeersToAck.Peers = currentPeers
 					ackCurrentPeersChan <- currPeersToAck
 				}
+				fmt.Println("NW: currentPeers etter mottatt: ", currentPeers)
 
 			}
 
 			if len(p.Lost) > 0 {
 				var lostSlice []int
 
-				for i := range p.Lost { // Need to make strings ints
+				for i := range p.Lost {
 					lostIDInt, _ := strconv.Atoi(p.Lost[i])
 					lostSlice = append(lostSlice, lostIDInt)
 				}
