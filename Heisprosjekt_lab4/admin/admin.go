@@ -53,7 +53,7 @@ getAliveLiftsLoop:
 
 	inList := false
 	fmt.Println("Adm: aliveLifts etter første loop: ", aliveLifts)
-	for i, peer := range aliveLifts {
+	for _, peer := range aliveLifts {
 		if peer == ID {
 			inList = true
 		}
@@ -61,6 +61,7 @@ getAliveLiftsLoop:
 
 	if !inList {
 		aliveLifts = append(aliveLifts, ID)
+		sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] })
 	}
 	fmt.Println("Adm: aliveLifts etter test om egen id finnes der: ", aliveLifts)
 
