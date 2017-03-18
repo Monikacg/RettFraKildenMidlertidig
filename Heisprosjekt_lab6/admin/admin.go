@@ -264,9 +264,15 @@ initLoop:
 			default: //Any other lift
 				switch m.Type {
 				case "ButtonPressed":
+					fmt.Println("Adm: Får tilbake fra network, annen heis")
 					AddOrder(orders, m.Floor, m.ID, m.ExtraInfo)
 					if m.ExtraInfo == BUTTON_CALL_UP || m.ExtraInfo == BUTTON_CALL_DOWN {
 						localOrderChan <- Order{"LIGHT", m.ExtraInfo, m.Floor, ON}
+						fmt.Println("Adm: Samme loop, state og orders: ", GetState(properties, ID), orders)
+						if GetState(properties, ID) == IDLE {
+							fmt.Println("Adm: State == IDLE når knapp trykket på, melding fra annen heis")
+							findNewOrder(orders, ID, properties, aliveLifts, startTimerChan, localOrderChan, adminTChan)
+						}
 					}
 				case "Stopped":
 					AssignOrders(orders, m.Floor, m.ID)
