@@ -103,31 +103,6 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 
 		case recvMsg := <-receivedFromOthersToAckChan:
 			fmt.Println("NW::senAcks: Message received: ", recvMsg)
-			/*switch recvMsg.Message.ID {
-			case ownID:
-				if len(peers) > 1 {
-					for i, ack := range msgAcks {
-						if ownID == ack.Message.ID {
-							ack.Counter++
-							// Skal det under være med (det inni if)? If so, føles timer redundant
-							//...som ville vært flott. Med mindre else-clausen blir utvidet.
-							if ack.Counter >= len(peers)-1 {
-								adminRChan <- ack.Message
-								msgAcks = append(msgAcks[:i], msgAcks[i+1:]...)
-							}
-						}
-					}
-				}
-
-				msgAckTimer = time.NewTimer(timeout) // Skeptisk til det her. Kan være at test nederst ville vært fint uten den delayen det her skaper
-			default:
-				messageSenderChan <- recvMsg
-				// Sender bare 1 gang som det står nå. Dette er vår ack på en annen sin melding.
-				// Hvis vi vil sende ack flere ganger for å garantere at den blir lagt inn, må vi ha
-				// ID på ackingen.
-			}*/
-
-			//Hvis gammel versjon av bcast, legg inn test på AckersID hvis ack og ID på udp hvis ikke
 
 			// Tenker at det her fungerer nå, men sent, så sikkert lurt å sjekke igjen når en er våken.
 			if recvMsg.ThisIsAnAck {
@@ -171,8 +146,9 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 				}
 
 			} else {
-				// ThisIsAnAck = True, AckersID = ownID. Acker på andre sine meldinger.
+				// Sett ThisIsAnAck = true, AckersID = ownID. Acker på andre sine meldinger.
 				if recvMsg.Message.ID != ownID {
+					fmt.Println("NW: Fått melding, sender ack. Melding: ", recvMsg.Message)
 					recvMsg.ThisIsAnAck = true
 					recvMsg.AckersID = ownID
 					adminRChan <- recvMsg.Message
