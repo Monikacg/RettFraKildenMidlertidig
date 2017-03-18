@@ -42,15 +42,22 @@ func backupSender(backupTx chan<- BackUp, backupSenderChan <-chan BackUp) {
 	}
 }
 
+//Kan hende vi må sette inn tellevariabel for states: tell opp for hver heis/tell opp for hver melding sendt (sequence number)
+// Alternativt (bedre?): bare slett fra acked hvis alle er acked. If not, send alle på nytt. sikrer riktig rekkefølge PÅ EN SIDE.
+// ikke andre siden. Sequence number sikkert riktigst for alle. Legg da til på ALLE meldinger som sendes ut, sånn at hvis vi fikk
+// meldingen med nest siste tall blir det riktig å velge ta inn den helt siste også. Hvis ikke fått den like før, ikke send ack.
+// Bør ha mulighet til å ta bort etter en stund hvis den aldri kommer... Restart når New/Lost?
+// Bare slett om de kan slettes i riktig rekkefølge (sekvensnummer)
+
 // VIKTIGST Å TEST OM MSGACKTIMER SLÅR UT RIKTIG NÅR DEN BLIR RESATT SÅ OFTE.
 func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan <-chan Udp, receivedFromOthersToAckChan <-chan OverNetwork,
 	adminRChan chan<- Udp, sendBackupToAckChan <-chan BackUp, backupRChan chan<- BackUp, messageSenderChan chan<- OverNetwork, backupSenderChan chan<- BackUp) {
 	ownID := IDInput
 	var peers []int
-	const timeout = 1000 * time.Millisecond
+	const timeout = 3000 * time.Millisecond
 
 	numberOfNewMessages := 1 // ENDRE NAVN
-	numberOfTimeouts := 2
+	numberOfTimeouts := 3 // Bør tas vekk når sequence number? eller settes til numberOfTimeouts igjen når en slettes? <- kanskje bedre
 
 	var msgAcks []Ack
 
@@ -82,7 +89,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 
 
 			msgAcks = append(msgAcks, newAck)
-
+			fmt.Println("NW::senAcks: msgAcks etter msgToSend er lagt til: ", msgAcks)
 			var newMessage OverNetwork
 			newMessage.Message = msgToSend
 			for i := 0; i < numberOfNewMessages; i++ {
@@ -101,10 +108,10 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			*/
 			//time.Sleep(1 * time.Millisecond)
 			//
-			msgAckTimer = time.NewTimer(timeout)
+			//msgAckTimer = time.NewTimer(timeout)
 
 		case recvMsg := <-receivedFromOthersToAckChan:
-			fmt.Println("NW::senAcks: Message received: ", recvMsg)
+			fmt.Println("NW::senAcks: Message received, current msgAcks: ", recvMsg, msgAcks)
 
 			// Tenker at det her fungerer nå, men sent, så sikkert lurt å sjekke igjen når en er våken.
 			if recvMsg.ThisIsAnAck {
@@ -115,7 +122,6 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 					var indexOfMessagesToDelete []int
 					if recvMsg.Message.ID == ownID { // Da er det ack på vår melding
 						for i, ack := range msgAcks {
-							msgAcks[i].Counter--
 							if ack.Message == recvMsg.Message {
 								alreadyAcked := false
 								for _, acker := range ack.Ackers {
