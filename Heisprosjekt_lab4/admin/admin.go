@@ -120,6 +120,7 @@ initLoop:
 				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] }) //Bare problem på mac?
 
 			case "Lost":
+				fmt.Println("Adm: Får inn Lost peer. Det er: ", peerMsg.ChangedPeer)
 				for i, lostPeer := range aliveLifts {
 					if lostPeer == peerMsg.ChangedPeer {
 						aliveLifts = append(aliveLifts[:i], aliveLifts[i+1:]...)
@@ -130,6 +131,7 @@ initLoop:
 			}
 
 		case backupMsg := <-backupRChan:
+			fmt.Println("Adm: Fått inn melding fra backupRChan, melding: ", backupMsg)
 			switch backupMsg.Info {
 			case "IWasAlone":
 				// Legg inn alle INDRE ordre for backupMsg.SenderID
@@ -234,6 +236,7 @@ initLoop:
 			findNewOrder(orders, ID, properties, aliveLifts, startTimerChan, localOrderChan, adminTChan)
 
 		case m := <-adminRChan:
+			fmt.Println("Adm: Fått inn melding fra adminRChan, melding: ", m)
 			switch m.ID {
 			case ID:
 				//Alt for egen heis
@@ -287,6 +290,7 @@ initLoop:
 			}
 
 		case backupMsg := <-backupRChan:
+			fmt.Println("Adm: Fått inn melding fra backupRChan, melding: ", backupMsg)
 			switch backupMsg.Info {
 			case "IWasAlone":
 				fmt.Println("Adm: Fått ny backup (I was alone). Backup melding: ")
