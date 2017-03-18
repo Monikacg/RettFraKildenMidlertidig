@@ -24,8 +24,9 @@ func messageSender(helloTx chan<- OverNetwork, messageSenderChan <-chan OverNetw
 	for {
 		select {
 		case msg := <-messageSenderChan:
+			fmt.Println("NW::messageSender: Sending this: ", msg)
 			helloTx <- msg
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }
@@ -34,8 +35,9 @@ func backupSender(backupTx chan<- BackUp, backupSenderChan <-chan BackUp) {
 	for {
 		select {
 		case bu := <-backupSenderChan:
+			fmt.Println("NW::backupSender: Sending this: ", bu)
 			backupTx <- bu
-			time.Sleep(1 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }
@@ -45,7 +47,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 	adminRChan chan<- Udp, sendBackupToAckChan <-chan BackUp, backupRChan chan<- BackUp, messageSenderChan chan<- OverNetwork, backupSenderChan chan<- BackUp) {
 	ownID := IDInput
 	var peers []int
-	const timeout = 50 * time.Millisecond
+	const timeout = 500 * time.Millisecond
 
 	numberOfNewMessages := 5 // ENDRE NAVN
 
@@ -68,7 +70,9 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 				}
 				msgAcks[i].Ackers = temp
 			}
+			fmt.Println("NW::senAcks: Mottatt currentPeers, ny peers: ", peers)
 		case msgToSend := <-adminToAckChan:
+			fmt.Println("NW::senAcks: Message to send out: ", msgToSend)
 			var newAck Ack
 			newAck.Message = msgToSend
 
@@ -95,6 +99,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			msgAckTimer = time.NewTimer(timeout)
 
 		case recvMsg := <-receivedFromOthersToAckChan:
+			fmt.Println("NW::senAcks: Message received: ", recvMsg)
 			/*switch recvMsg.Message.ID {
 			case ownID:
 				if len(peers) > 1 {
@@ -166,6 +171,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			// (granted at de er etter hverandre -> svakhet i implementasjonen)
 
 		case backup := <-sendBackupToAckChan:
+			fmt.Println("NW::senAcks: Backup to send: ", backup)
 			// Bare send samme antall ganger som vanlig ack og bli ferdig med det.
 			// Står bare her i tilfelle vi vil legge inn acking på backup også. Akkurat nå skal
 			// det bare sendes inn til admin (antar at alt kommer frem). Uten acking kan dette flyttes
@@ -186,6 +192,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			}
 
 		case <-msgAckTimer.C:
+			fmt.Println("NW::senAcks: Got timeout (msgacks). MsgAcks at timeout: ", msgAcks)
 			var indexOfMessagesToDelete []int
 			if len(peers) > 1 {
 				for i, ack := range msgAcks {
@@ -224,6 +231,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 				}
 
 			}
+			fmt.Println("NW::senAcks: Got timeout (msgacks). MsgAcks AFTER LOOPS: ", msgAcks)
 
 		}
 	}
@@ -300,11 +308,12 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 	for {
 		select {
 		case backupToSend := <-backupTChan:
-			fmt.Println("backupToSend", backupToSend.SenderID, backupToSend.Info)
+			fmt.Println("NW: backupToSend: ", backupToSend)
 			sendBackupToAckChan <- backupToSend
 		//Legg til case for tatt imot backup en plass
 
 		case gotBackupFromSomeoneElse := <-backupRx:
+			fmt.Println("NW: gotBackupFromSomeoneElse: ", gotBackupFromSomeoneElse)
 			sendBackupToAckChan <- gotBackupFromSomeoneElse //Legg til previousBackup og test om den har blitt mottatt tidligere for bedre kode.
 
 		case u := <-adminTChan:
@@ -328,19 +337,20 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 						adminRChan <- u
 					} else {
 						//Ta bort før presentasjon
-						fmt.Println("I single elevator mode, pressing outer buttons doesn't do anything")
+						fmt.Println("NW: I single elevator mode, pressing outer buttons doesn't do anything")
 					}
-					fmt.Println("NW (single): Melding", u)
+					fmt.Println("NW: (single): Melding", u)
 				} else {
 
 					adminToAckChan <- u
-					fmt.Println("NW (not alone): Melding", u)
+					fmt.Println("NW: (not alone): Melding", u)
 
 					lastMessage = u
 				}
 			}
 
 		case recv := <-helloRx:
+			fmt.Println("NW: Received from helloRx: ", recv)
 			receivedFromOthersToAckChan <- recv
 			//If vår ID, send to ack (receivedFromOthersToAckChan)
 			/*switch recv.Message.ID { // SISTE KOMMENTAR: Tror ikke det her trengs, da alle vil sendes til ack.
@@ -403,7 +413,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 			}
 
 			if len(p.New) > 0 {
-				fmt.Println("NW: Mottatt ny: ", p.New)
+				fmt.Println("NW: Mottatt New: ", p.New)
 				fmt.Println("NW: currentPeers når mottatt: ", currentPeers)
 				newID, _ := strconv.Atoi(p.New)
 				if newID != ownID { // Må endres! vil tydeligvis ha egen id sent til admin i hvert fall.
@@ -422,7 +432,8 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 
 			if len(p.Lost) > 0 {
 				var lostSlice []int
-
+				fmt.Println("NW: Mottatt Lost: ", p.Lost)
+				fmt.Println("NW: currentPeers når mottatt Lost: ", currentPeers)
 				for i := range p.Lost {
 					lostIDInt, _ := strconv.Atoi(p.Lost[i])
 					lostSlice = append(lostSlice, lostIDInt)
@@ -450,6 +461,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 				// Alternativt: currPeersToAck := CurrPeers{} Gjør det samme
 				currPeersToAck.Peers = currentPeers
 				ackCurrentPeersChan <- currPeersToAck
+				fmt.Println("NW: currentPeers etter lost er tatt ut: ", currentPeers)
 			}
 
 			//fmt.Printf("Received: %#v\n", a)
