@@ -52,7 +52,6 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 	numberOfNewMessages := 1 // ENDRE NAVN
 	numberOfTimeouts := 2
 
-	var lastBackupSent BackUp
 	var msgAcks []Ack
 
 	msgAckTimer := time.NewTimer(timeout)
@@ -199,12 +198,10 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			switch backup.SenderID {
 			case ownID:
 				//Send 2-5 times
-				if backup != lastBackupSent {
-					for i := 0; i < numberOfNewMessages; i++ {//Må sjekke om peer allerede er i aliveLifts
-						backupSenderChan <- backup
-					}
+				for i := 0; i < numberOfNewMessages; i++ {//Må sjekke om peer allerede er i aliveLifts
+					backupSenderChan <- backup
 				}
-				lastBackupSent = backup
+
 
 			//gotBackupFromSomeoneElse
 			default:
@@ -271,6 +268,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 
 	init := true
 
+
 	//var previousMessage []Udp // Eq to previousMessage := []Udp{} Brukes ikke akkurat nå
 	// var previousBackup []BackUp LEGG INN HVIS DET FØLES LURT.
 
@@ -285,6 +283,8 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 	sendBackupToAckChan := make(chan BackUp, 100)
 	//outPutCh := make(chan Udp, 100)
 	const timeout = 200 * time.Millisecond
+
+	id := strconv.Itoa(ownID)
 
 	peerUpdateCh := make(chan peers.PeerUpdate)
 	peerTxEnable := make(chan bool)
@@ -339,7 +339,9 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 
 		case gotBackupFromSomeoneElse := <-backupRx:
 			fmt.Println("NW: gotBackupFromSomeoneElse: ", gotBackupFromSomeoneElse)
-			sendBackupToAckChan <- gotBackupFromSomeoneElse //Legg til previousBackup og test om den har blitt mottatt tidligere for bedre kode.
+			if gotBackupFromSomeoneElse.SenderID != ownID {
+				sendBackupToAckChan <- gotBackupFromSomeoneElse
+			} //Legg til previousBackup og test om den har blitt mottatt tidligere for bedre kode.
 
 		case u := <-adminTChan:
 			// Når en får beskjed fra admin om noe: legg inn i sende-struct,
