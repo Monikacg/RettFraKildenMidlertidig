@@ -49,7 +49,8 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 	var peers []int
 	const timeout = 500 * time.Millisecond
 
-	numberOfNewMessages := 5 // ENDRE NAVN
+	numberOfNewMessages := 1 // ENDRE NAVN
+	numberOfTimeouts := 2
 
 	var msgAcks []Ack
 
@@ -75,6 +76,8 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			fmt.Println("NW::senAcks: Message to send out: ", msgToSend)
 			var newAck Ack
 			newAck.Message = msgToSend
+			newAck.Counter = numberOfTimeouts
+
 
 			msgAcks = append(msgAcks, newAck)
 
@@ -124,6 +127,8 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 				// ID på ackingen.
 			}*/
 
+			//Hvis gammel versjon av bcast, legg inn test på AckersID hvis ack og ID på udp hvis ikke
+
 			// Tenker at det her fungerer nå, men sent, så sikkert lurt å sjekke igjen når en er våken.
 			if recvMsg.ThisIsAnAck {
 				// Må være fra noen andre. Finn Message (Udp) i msgAcks, så sjekke om AckersID
@@ -132,6 +137,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 				var indexOfMessagesToDelete []int
 				if recvMsg.Message.ID == ownID { // Da er det ack på vår melding
 					for i, ack := range msgAcks {
+						msgAcks[i].Counter--
 						if ack.Message == recvMsg.Message {
 							alreadyAcked := false
 							for _, acker := range ack.Ackers {
@@ -144,6 +150,10 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 							}
 							if len(peers) > 1 {
 								if len(msgAcks[i].Ackers) >= len(peers)-1 {
+									adminRChan <- ack.Message
+									//msgAcks = append(msgAcks[:i], msgAcks[i+1:]...) Kan ikke stå her siden det endrer på for-løkka.
+									indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
+								} else if msgAcks[i].Counter <= 0 { // erstatt med or?
 									adminRChan <- ack.Message
 									//msgAcks = append(msgAcks[:i], msgAcks[i+1:]...) Kan ikke stå her siden det endrer på for-løkka.
 									indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
@@ -196,9 +206,14 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			var indexOfMessagesToDelete []int
 			if len(peers) > 1 {
 				for i, ack := range msgAcks {
+					msgAcks[i].Counter--
 					if len(ack.Ackers) >= len(peers)-1 {
 						adminRChan <- ack.Message
 						indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
+					} else if msgAcks[i].Counter <= 0 {
+						adminRChan <- ack.Message
+						indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
+						fmt.Println("NW::senAcks: Kaster ut en ack, denne: ", msgAcks[i])
 					} else {
 						msgAcks[i].Ackers = []int{}
 					}
@@ -274,7 +289,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 	*/
 
 	helloTx := make(chan OverNetwork)
-	helloRx := make(chan OverNetwork)
+	helloRx := make(chan OverNetwork, 3)
 	go bcast.Transmitter(16570, id, helloTx)
 	go bcast.Receiver(16570, id, false, helloRx)
 
@@ -351,7 +366,14 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 
 		case recv := <-helloRx:
 			fmt.Println("NW: Received from helloRx: ", recv)
+			/*
+			if recv.ThisIsAnAck {
+				receivedFromOthersToAckChan <- recv
+			} else if recv.Message.ID != ownID {
+				receivedFromOthersToAckChan <- recv
+			} */
 			receivedFromOthersToAckChan <- recv
+
 			//If vår ID, send to ack (receivedFromOthersToAckChan)
 			/*switch recv.Message.ID { // SISTE KOMMENTAR: Tror ikke det her trengs, da alle vil sendes til ack.
 			case ownID:

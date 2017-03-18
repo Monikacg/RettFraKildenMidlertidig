@@ -65,6 +65,7 @@ type OverNetwork struct {
 type Ack struct {
 	Message Udp
 	Ackers  []int
+	Counter int
 }
 
 type Peer struct {
