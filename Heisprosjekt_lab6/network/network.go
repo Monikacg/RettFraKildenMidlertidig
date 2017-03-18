@@ -59,6 +59,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 	for {
 		select {
 		case cP := <-ackCurrentPeersChan:
+			//lenpeers := len(peers)
 			peers = cP.Peers
 			for i, ack := range msgAcks {
 				var temp []int //Usikker på om temp bør hete noe annet.
@@ -71,6 +72,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 				}
 				msgAcks[i].Ackers = temp
 			}
+
 			fmt.Println("NW::senAcks: Mottatt currentPeers, ny peers: ", peers)
 		case msgToSend := <-adminToAckChan:
 			fmt.Println("NW::senAcks: Message to send out: ", msgToSend)
@@ -138,8 +140,10 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 							}
 						}
 					}
-					for _, i := range indexOfMessagesToDelete {
-						msgAcks = append(msgAcks[:i], msgAcks[i+1:]...)
+					fmt.Println("NW: msgAcks in messages to delete: ", msgAcks)
+					fmt.Println("NW: indexOfMessagesToDelete: ", indexOfMessagesToDelete)
+					for k, i := range indexOfMessagesToDelete {
+						msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
 					}
 
 					//msgAckTimer = time.NewTimer(timeout)
@@ -201,8 +205,8 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 						msgAcks[i].Ackers = []int{}
 					}
 				}
-				for _, i := range indexOfMessagesToDelete {
-					msgAcks = append(msgAcks[:i], msgAcks[i+1:]...)
+				for k, i := range indexOfMessagesToDelete {
+					msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
 				}
 
 				for _, ack := range msgAcks { //Kanskje endre navn for kodekvalitet
