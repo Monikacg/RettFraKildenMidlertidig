@@ -245,7 +245,7 @@ initLoop:
 					fmt.Println("Adm: Får tilbake fra network")
 					AddOrder(orders, m.Floor, m.ID, m.ExtraInfo)
 					localOrderChan <- Order{"LIGHT", m.ExtraInfo, m.Floor, ON}
-
+					fmt.Println("Adm: Samme loop, state og orders: ", GetState(properties, ID), orders)
 					if GetState(properties, ID) == IDLE {
 						fmt.Println("Adm: State == IDLE når knapp trykket på")
 						findNewOrder(orders, ID, properties, aliveLifts, startTimerChan, localOrderChan, adminTChan)
