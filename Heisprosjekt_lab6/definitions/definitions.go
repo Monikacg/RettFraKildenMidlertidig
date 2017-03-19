@@ -59,13 +59,17 @@ type Udp struct {
 type OverNetwork struct {
 	ThisIsAnAck bool
 	AckersID    int
+	SequenceStart int
+	SequenceNumber int
 	Message     Udp
 }
 
 type Ack struct {
+	SequenceStart int
+	SequenceNumber int
 	Message Udp
 	Ackers  []int
-	Counter int
+	//Counter int
 }
 
 type Peer struct {

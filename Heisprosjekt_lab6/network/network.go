@@ -57,9 +57,11 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 	const timeout = 3000 * time.Millisecond
 
 	numberOfNewMessages := 1 // ENDRE NAVN
-	numberOfTimeouts := 3 // Bør tas vekk når sequence number? eller settes til numberOfTimeouts igjen når en slettes? <- kanskje bedre
+	//numberOfTimeouts := 3 // Bør tas vekk når sequence number? eller settes til numberOfTimeouts igjen når en slettes? <- kanskje bedre
 
 	var msgAcks []Ack
+	var ownSeqStart int
+	seqs := make([]int, MAX_N_LIFTS)
 
 	msgAckTimer := time.NewTimer(timeout)
 
@@ -85,16 +87,21 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			fmt.Println("NW::senAcks: Message to send out: ", msgToSend)
 			var newAck Ack
 			newAck.Message = msgToSend
-			newAck.Counter = numberOfTimeouts
+			newAck.SequenceStart = ownSeqStart
+			newAck.SequenceNumber = seqs[ownID]
+			//newAck.Counter = numberOfTimeouts
 
 
 			msgAcks = append(msgAcks, newAck)
 			fmt.Println("NW::senAcks: msgAcks etter msgToSend er lagt til: ", msgAcks)
 			var newMessage OverNetwork
 			newMessage.Message = msgToSend
+			newMessage.SequenceStart = ownSeqStart
+			newMessage.SequenceNumber = seqs[ownID]
 			for i := 0; i < numberOfNewMessages; i++ {
 				messageSenderChan <- newMessage
 			}
+			seqs[ownID]++
 			/* Siden de legger inn 15% packet loss (+et par prosent som kommer fra andre ting antar jeg):
 			Send nok ganger til at sans for å komme frem er høy nok og ta det
 			Sender en gang: 80% sjanse.
@@ -137,11 +144,11 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 										adminRChan <- ack.Message
 										//msgAcks = append(msgAcks[:i], msgAcks[i+1:]...) Kan ikke stå her siden det endrer på for-løkka.
 										indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
-									} else if msgAcks[i].Counter <= 0 { // erstatt med or?
+									} /*else if msgAcks[i].Counter <= 0 { // erstatt med or?
 										adminRChan <- ack.Message
 										//msgAcks = append(msgAcks[:i], msgAcks[i+1:]...) Kan ikke stå her siden det endrer på for-løkka.
 										indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
-									}
+									}*/
 								}
 							}
 						}
@@ -158,11 +165,18 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			} else {
 				// Sett ThisIsAnAck = true, AckersID = ownID. Acker på andre sine meldinger.
 				if recvMsg.Message.ID != ownID {
-					fmt.Println("NW: Fått melding, sender ack. Melding: ", recvMsg.Message)
-					recvMsg.ThisIsAnAck = true
-					recvMsg.AckersID = ownID
-					adminRChan <- recvMsg.Message
-					messageSenderChan <- recvMsg
+					if recvMsg.SequenceStart > seqs[recvMsg.Message.ID] {
+						seqs[recvMsg.Message.ID] = recvMsg.SequenceStart
+					}
+					if recvMsg.SequenceNumber <= seqs[recvMsg.Message.ID] {
+						fmt.Println("NW: Fått melding, sender ack. Melding: ", recvMsg.Message)
+						recvMsg.ThisIsAnAck = true
+						recvMsg.AckersID = ownID
+						adminRChan <- recvMsg.Message
+						messageSenderChan <- recvMsg
+						seqs[recvMsg.Message.ID]++
+					}
+
 				}
 
 			}
@@ -199,18 +213,22 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			var indexOfMessagesToDelete []int
 			if len(peers) > 1 {
 				for i, ack := range msgAcks {
-					msgAcks[i].Counter--
+					//msgAcks[i].Counter--
 					if len(ack.Ackers) >= len(peers)-1 {
 						adminRChan <- ack.Message
 						indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
-					} else if msgAcks[i].Counter <= 0 {
-						adminRChan <- ack.Message
-						indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
-						fmt.Println("NW::senAcks: Kaster ut en ack, denne: ", msgAcks[i])
 					} else {
 						msgAcks[i].Ackers = []int{}
 					}
 				}
+
+				/*else if msgAcks[i].Counter <= 0 {
+					adminRChan <- ack.Message
+					indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
+					fmt.Println("NW::senAcks: Kaster ut en ack, denne: ", msgAcks[i])
+				}*/
+
+
 				for k, i := range indexOfMessagesToDelete {
 					msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
 				}
@@ -219,6 +237,8 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 					for i := 0; i < numberOfNewMessages; i++ {
 						var newMessage OverNetwork
 						newMessage.Message = ack.Message
+						newMessage.SequenceStart = ack.SequenceStart
+						newMessage.SequenceNumber = ack.SequenceNumber
 						messageSenderChan <- newMessage
 					}
 				}
@@ -234,9 +254,12 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 					//if ack.Message.ID == ownID { // Unødvendig, alle skal jo være våre meldinger
 					adminRChan <- msgAcks[0].Message
 					msgAcks = append(msgAcks[:0], msgAcks[1:]...) // Denne må løses med while-løkke. Her slettes alle.
+					seqs[ownID]++
 					//}
 					//msgAcks = append(msgAcks[:i], msgAcks[i+1:]...)
 				}
+
+				ownSeqStart = seqs[ownID]
 
 			}
 			fmt.Println("NW::senAcks: Got timeout (msgacks). MsgAcks AFTER LOOPS: ", msgAcks)
