@@ -83,8 +83,9 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			}
 
 			fmt.Println("NW::senAcks: Mottatt currentPeers, ny peers: ", peers)
+
 		case msgToSend := <-adminToAckChan:
-			fmt.Println("NW::senAcks: Message to send out: ", msgToSend)
+			//fmt.Println("NW::senAcks: Message to send out: ", msgToSend)
 			var newAck Ack
 			newAck.Message = msgToSend
 			newAck.SequenceStart = ownSeqStart
@@ -93,7 +94,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 
 
 			msgAcks = append(msgAcks, newAck)
-			fmt.Println("NW::senAcks: msgAcks etter msgToSend er lagt til: ", msgAcks)
+			//fmt.Println("NW::senAcks: msgAcks etter msgToSend er lagt til: ", msgAcks)
 			var newMessage OverNetwork
 			newMessage.Message = msgToSend
 			newMessage.SequenceStart = ownSeqStart
@@ -153,8 +154,8 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 							}
 						}
 					}
-					fmt.Println("NW: msgAcks in messages to delete: ", msgAcks)
-					fmt.Println("NW: indexOfMessagesToDelete: ", indexOfMessagesToDelete)
+					//fmt.Println("NW: msgAcks in messages to delete: ", msgAcks)
+					//fmt.Println("NW: indexOfMessagesToDelete: ", indexOfMessagesToDelete)
 					for k, i := range indexOfMessagesToDelete {
 						msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
 					}
@@ -169,7 +170,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 						seqs[recvMsg.Message.ID] = recvMsg.SequenceStart
 					}
 					if recvMsg.SequenceNumber <= seqs[recvMsg.Message.ID] {
-						fmt.Println("NW: Fått melding, sender ack. Melding: ", recvMsg.Message)
+						//fmt.Println("NW: Fått melding, sender ack. Melding: ", recvMsg.Message)
 						recvMsg.ThisIsAnAck = true
 						recvMsg.AckersID = ownID
 						adminRChan <- recvMsg.Message
@@ -186,7 +187,8 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			// (granted at de er etter hverandre -> svakhet i implementasjonen)
 
 		case backup := <-sendBackupToAckChan:
-			fmt.Println("NW::senAcks: Backup to send: ", backup)
+			//fmt.Println("NW::senAcks: Backup to send: ", backup)
+
 			// Bare send samme antall ganger som vanlig ack og bli ferdig med det.
 			// Står bare her i tilfelle vi vil legge inn acking på backup også. Akkurat nå skal
 			// det bare sendes inn til admin (antar at alt kommer frem). Uten acking kan dette flyttes
@@ -209,7 +211,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			}
 
 		case <-msgAckTimer.C:
-			fmt.Println("NW::senAcks: Got timeout (msgacks). MsgAcks at timeout: ", msgAcks)
+			//fmt.Println("NW::senAcks: Got timeout (msgacks). MsgAcks at timeout: ", msgAcks)
 			var indexOfMessagesToDelete []int
 			if len(peers) > 1 {
 				for i, ack := range msgAcks {
@@ -262,7 +264,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 				ownSeqStart = seqs[ownID]
 
 			}
-			fmt.Println("NW::senAcks: Got timeout (msgacks). MsgAcks AFTER LOOPS: ", msgAcks)
+			//fmt.Println("NW::senAcks: Got timeout (msgacks). MsgAcks AFTER LOOPS: ", msgAcks)
 
 		}
 	}

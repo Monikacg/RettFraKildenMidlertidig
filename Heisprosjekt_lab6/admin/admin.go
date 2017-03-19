@@ -242,7 +242,7 @@ initLoop:
 				//Alt for egen heis
 				switch m.Type {
 				case "ButtonPressed":
-					fmt.Println("Adm: Får tilbake fra network")
+					fmt.Println("Adm: Får tilbake fra network, ButtonPressed")
 					AddOrder(orders, m.Floor, m.ID, m.ExtraInfo)
 					localOrderChan <- Order{"LIGHT", m.ExtraInfo, m.Floor, ON}
 					fmt.Println("Adm: Samme loop, state og orders: ", GetState(properties, ID), orders)
@@ -250,21 +250,25 @@ initLoop:
 						fmt.Println("Adm: State == IDLE når knapp trykket på")
 						findNewOrder(orders, ID, properties, aliveLifts, startTimerChan, localOrderChan, adminTChan)
 					}
+					fmt.Println("Adm: Properties inne i samme case: ", properties)
 				case "Stopped":
 					// Får ingenting tilbake fra andre her. Ta bort alle disse casene? til slutt i så fall.
+					fmt.Println("Adm: Stopped kommer rundt, gjør ingenting. Properties: ", properties)
 				case "DrovePast":
 				// Ingenting
-				//fmt.Println("Adm: DrovePast kommer rundt")
+					fmt.Println("Adm: DrovePast kommer rundt, gjør ingenting. Properties: ", properties)
 				case "NewOrder":
 					// Gjør alt før, er bare ack her. Skal det i det hele tatt komme tilbake hit?
+					fmt.Println("Adm: NewOrder kommer rundt, gjør ingenting. Properties: ", properties)
 				case "Idle":
 					// Samme som over. Nada.
+					fmt.Println("Adm: Idle kommer rundt, gjør ingenting. Properties: ", properties)
 				}
 
 			default: //Any other lift
 				switch m.Type {
 				case "ButtonPressed":
-					fmt.Println("Adm: Får tilbake fra network, annen heis")
+					fmt.Println("Adm: Får tilbake fra network, annen heis, ButtonPressed")
 					AddOrder(orders, m.Floor, m.ID, m.ExtraInfo)
 					if m.ExtraInfo == BUTTON_CALL_UP || m.ExtraInfo == BUTTON_CALL_DOWN {
 						localOrderChan <- Order{"LIGHT", m.ExtraInfo, m.Floor, ON}
@@ -274,24 +278,32 @@ initLoop:
 							findNewOrder(orders, ID, properties, aliveLifts, startTimerChan, localOrderChan, adminTChan)
 						}
 					}
+					fmt.Println("Adm: Properties inne i samme case: ", properties)
 				case "Stopped":
+					fmt.Println("Adm: Får tilbake fra network, annen heis, Stopped")
 					AssignOrders(orders, m.Floor, m.ID)
 					CompleteOrder(orders, m.Floor, m.ID)
 					localOrderChan <- Order{"LIGHT", BUTTON_CALL_UP, m.Floor, OFF}
 					localOrderChan <- Order{"LIGHT", BUTTON_CALL_DOWN, m.Floor, OFF}
 					SetState(properties, m.ID, DOOR_OPEN)
 					SetLastFloor(properties, m.ID, m.Floor)
-
+					fmt.Println("Adm: Properties inne i samme case: ", properties)
 				case "DrovePast":
+					fmt.Println("Adm: Får tilbake fra network, annen heis, DrovePast")
 					SetLastFloor(properties, m.ID, m.Floor)
 					SetState(properties, m.ID, MOVING)
-					fmt.Println("Adm: Men ikke hit")
+					fmt.Println("Adm: Properties inne i samme case: ", properties)
 
 				case "NewOrder":
+					fmt.Println("Adm: Får tilbake fra network, annen heis, NewOrder")
 					SetState(properties, m.ID, MOVING)
 					SetDirn(properties, m.ID, GetNewDirection(m.Floor, GetLastFloor(properties, m.ID)))
+					fmt.Println("Adm: Properties inne i samme case: ", properties)
+
 				case "Idle":
+					fmt.Println("Adm: Får tilbake fra network, annen heis, Idle")
 					SetState(properties, m.ID, IDLE)
+					fmt.Println("Adm: Properties inne i samme case: ", properties)
 				}
 			}
 
