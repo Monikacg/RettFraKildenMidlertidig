@@ -40,6 +40,8 @@ func Admin(IDInput int, buttonChan <-chan Button, floorSensorChan <-chan int,
 
 	//Kan bruke PEERS for å få inn ALLE
 
+	SetDirn(properties, ID, DIRN_DOWN)
+
 getAliveLiftsLoop:
 	for {
 		select {
@@ -80,7 +82,7 @@ searchingForBackupLoop:
 			switch peerMsg.Change {
 			case "New": //Må sjekke om peer allerede er i aliveLifts
 				fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
-				if len(aliveLifts) == 1 {
+				if len(aliveLifts) - 1 == 1 {
 					backupTChan <- BackUp{"VarAlene", ID, orders, properties}
 				} else {
 					backupTChan <- BackUp{"IkkeAlene", ID, orders, properties}
