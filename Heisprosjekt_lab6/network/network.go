@@ -118,7 +118,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			//msgAckTimer = time.NewTimer(timeout)
 
 		case recvMsg := <-receivedFromOthersToAckChan:
-			fmt.Println("NW::senAcks: Message received, current msgAcks: ", recvMsg, msgAcks)
+			fmt.Println("NW::senAcks: Message received, MELLOMROM, current msgAcks: ", recvMsg, msgAcks)
 
 			// Tenker at det her fungerer nå, men sent, så sikkert lurt å sjekke igjen når en er våken.
 			if recvMsg.ThisIsAnAck {
