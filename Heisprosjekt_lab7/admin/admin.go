@@ -206,7 +206,7 @@ initLoop:
 						//fmt.Println("Adm: Should_stop")
 						localOrderChan <- Order{"DIRN", DIRN_STOP, NOT_VALID, ON}
 						startTimerChan <- "DOOR_OPEN"
-						adminTChan <- Udp{ID, "Stopped", f, NOT_VALID}
+						adminTChan <- Udp{ID, "Stopped", fs, NOT_VALID}
 					} else {
 						//fmt.Println("Adm: Should_stop NOT")
 						adminTChan <- Udp{ID, "DrovePast", fs, NOT_VALID} // ID, "kjørte forbi", etasje
@@ -244,10 +244,10 @@ initLoop:
 					}
 					fmt.Println("Adm: Properties inne i samme case: ", properties)
 				case "Stopped":
-					SetLastFloor(properties, ID, f)
+					SetLastFloor(properties, ID, m.Floor)
 					SetState(properties, ID, DOOR_OPEN)
-					AssignOrders(orders, f, ID)
-					CompleteOrder(orders, f, ID)
+					AssignOrders(orders, m.Floor, ID)
+					CompleteOrder(orders, m.Floor, ID)
 
 					fmt.Println("Adm: Fått Stopped tilbake. Properties: ", properties)
 
@@ -257,7 +257,7 @@ initLoop:
 					fmt.Println("Adm: DrovePast kommer rundt, setter lastFloor/state=MOVING. Properties: ", properties)
 				case "NewOrder":
 					// Gjør alt før, er bare ack her. Skal det i det hele tatt komme tilbake hit?
-					localOrderChan <- Order{"DIRN", newDirn, NOT_VALID, NOT_VALID}
+					localOrderChan <- Order{"DIRN", GetNewDirection(m.Floor, GetLastFloor(properties, ID)), NOT_VALID, NOT_VALID}
 					AssignOrders(orders, m.Floor, ID)
 					SetState(properties, ID, MOVING)
 					SetDirn(properties, ID, GetNewDirection(m.Floor, GetLastFloor(properties, ID)))
@@ -381,10 +381,10 @@ func findNewOrder(orders [][]int, ID int, properties []int, aliveLifts []int, st
 	fmt.Println("Adm: Got new direction", newDirn, dest)
 	if newDirn == DIRN_STOP {
 		fmt.Println("Adm: I DIRN_STOP for findNewOrder")
-		localOrderChan <- Order{"FLOOR_LIGHT", NOT_VALID, f, ON}
+		localOrderChan <- Order{"FLOOR_LIGHT", NOT_VALID, GetLastFloor(properties, ID), ON}
 		localOrderChan <- Order{"DIRN", DIRN_STOP, NOT_VALID, ON}
 		startTimerChan <- "DOOR_OPEN"
-		adminTChan <- Udp{ID, "Stopped", f, NOT_VALID}
+		adminTChan <- Udp{ID, "Stopped", GetLastFloor(properties, ID), NOT_VALID}
 	} else if newDirn == DIRN_DOWN || newDirn == DIRN_UP {
 		fmt.Println("Adm: I DIRN_DOWN/DIRN_UP for findNewOrder")
 		adminTChan <- Udp{ID, "NewOrder", dest, NOT_VALID} // ID, "Moving, desting (new order)", etasje
