@@ -165,6 +165,7 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 			} else {
 				// Sett ThisIsAnAck = true, AckersID = ownID. Acker på andre sine meldinger.
 				if recvMsg.Message.ID != ownID {
+					fmt.Println("NW: RecvSeqStart, RecvSeqNr, seqs ", recvMsg.SequenceStart, recvMsg.SequenceNumber, seqs)
 					if recvMsg.SequenceStart > seqs[recvMsg.Message.ID] {
 						seqs[recvMsg.Message.ID] = recvMsg.SequenceStart
 					}
