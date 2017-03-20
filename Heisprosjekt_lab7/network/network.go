@@ -18,13 +18,12 @@ import (
 // Note on packet loss: Bør sette opp timeout på peers-modulen? hvis det går tapt der?
 // eller vil det bare ødelegge? Test!
 
-// Test lastMessage der nede (i play.golang)
 
 func messageSender(helloTx chan<- OverNetwork, messageSenderChan <-chan OverNetwork) {
 	for {
 		select {
 		case msg := <-messageSenderChan:
-			fmt.Println("NW::messageSender: Sending this: ", msg)
+			//fmt.Println("NW::messageSender: Sending this: ", msg)
 			helloTx <- msg
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -35,19 +34,13 @@ func backupSender(backupTx chan<- BackUp, backupSenderChan <-chan BackUp) {
 	for {
 		select {
 		case bu := <-backupSenderChan:
-			fmt.Println("NW::backupSender: Sending this: ", bu)
+			//fmt.Println("NW::backupSender: Sending this: ", bu)
 			backupTx <- bu
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
 
-//Kan hende vi må sette inn tellevariabel for states: tell opp for hver heis/tell opp for hver melding sendt (sequence number)
-// Alternativt (bedre?): bare slett fra acked hvis alle er acked. If not, send alle på nytt. sikrer riktig rekkefølge PÅ EN SIDE.
-// ikke andre siden. Sequence number sikkert riktigst for alle. Legg da til på ALLE meldinger som sendes ut, sånn at hvis vi fikk
-// meldingen med nest siste tall blir det riktig å velge ta inn den helt siste også. Hvis ikke fått den like før, ikke send ack.
-// Bør ha mulighet til å ta bort etter en stund hvis den aldri kommer... Restart når New/Lost?
-// Bare slett om de kan slettes i riktig rekkefølge (sekvensnummer)
 
 // VIKTIGST Å TEST OM MSGACKTIMER SLÅR UT RIKTIG NÅR DEN BLIR RESATT SÅ OFTE.
 func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan <-chan Udp, helloRx <-chan OverNetwork,
@@ -68,7 +61,6 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 	for {
 		select {
 		case cP := <-ackCurrentPeersChan:
-			//lenpeers := len(peers)
 			peers = cP.Peers
 			for i, ack := range msgAcks {
 				var temp []int //Usikker på om temp bør hete noe annet.
@@ -103,23 +95,10 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 				messageSenderChan <- newMessage
 			}
 			seqs[ownID]++
-			/* Siden de legger inn 15% packet loss (+et par prosent som kommer fra andre ting antar jeg):
-			Send nok ganger til at sans for å komme frem er høy nok og ta det
-			Sender en gang: 80% sjanse.
-			Sender to ganger: 96% sjanse.
-			Sender tre ganger: 99.2% sjanse.
-			Sender fire ganger: 99.84% sjanse.
-			Sender fem ganger: 99.968% sjanse.
-			Sender seks ganger: 99.9936% sjanse.
-			Antar her at ekstra unreliability fra UDP er 5% (total 20%). Skal være mer reliable enn dette. Alt over 4 virker som overkill.
-			Rekkefølge kan være et problem for oss her.
-			*/
-			//time.Sleep(1 * time.Millisecond)
-			//
-			//msgAckTimer = time.NewTimer(timeout)
+
 
 		case recvMsg := <-helloRx:
-			fmt.Println("NW::senAcks: Message received, MELLOMROM, current msgAcks: ", recvMsg, msgAcks)
+			//fmt.Println("NW::senAcks: Message received, MELLOMROM, current msgAcks: ", recvMsg, msgAcks)
 
 			// Tenker at det her fungerer nå, men sent, så sikkert lurt å sjekke igjen når en er våken.
 			if recvMsg.ThisIsAnAck {
@@ -160,13 +139,12 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 						msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
 					}
 
-					//msgAckTimer = time.NewTimer(timeout)
 				}
 
 			} else {
 				// Sett ThisIsAnAck = true, AckersID = ownID. Acker på andre sine meldinger.
 				if recvMsg.Message.ID != ownID {
-					fmt.Println("NW: RecvSeqStart, RecvSeqNr, seqs ", recvMsg.SequenceStart, recvMsg.SequenceNumber, seqs)
+					//fmt.Println("NW: RecvSeqStart, RecvSeqNr, seqs ", recvMsg.SequenceStart, recvMsg.SequenceNumber, seqs)
 					if recvMsg.SequenceStart > seqs[recvMsg.Message.ID] {
 						seqs[recvMsg.Message.ID] = recvMsg.SequenceStart
 					}
@@ -186,17 +164,9 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 
 			}
 
-			//Husk å plusse på 1 NÅR VÅR EGEN ID
-			//Ellers send ut til de andre. Sjekk i Network sjekker sånn at vi ikke svarer på samme melding to ganger
-			// (granted at de er etter hverandre -> svakhet i implementasjonen)
 
 		case backup := <-sendBackupToAckChan:
 			//fmt.Println("NW::senAcks: Backup to send: ", backup)
-
-			// Bare send samme antall ganger som vanlig ack og bli ferdig med det.
-			// Står bare her i tilfelle vi vil legge inn acking på backup også. Akkurat nå skal
-			// det bare sendes inn til admin (antar at alt kommer frem). Uten acking kan dette flyttes
-			// til den andre loopen.
 
 			// Trur virkelig den her bør endres, i hvert fall litt. Med mindre vi satse på at 99.9936 e bra nok
 			// for det vi gjør.
@@ -248,19 +218,11 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 				}
 				msgAckTimer = time.NewTimer(timeout)
 			} else { // Ingen andre funnet på nettet.
-				//fmt.Println("This means we have lost some other lift (or our connection)")
-				//fmt.Println("Decide if we should remove all in acks (and previousMessages?) or not. ")
-				//fmt.Println("PreviousMessages when Lost. acks here.")
-				// Note: Hvis vi sender nok meldinger (gjør sannsynligheten for tap små)
-				// ->Kan ta bort len(peers) > 1, da vil alle bli tatt bort når alene
-				// Alternativet nå: Sletter alle i slicen. Må sende vår egen heis våre egne kommandoer
-				for len(msgAcks) > 0 { //Kanskje endre navn for kodekvalitet
-					//if ack.Message.ID == ownID { // Unødvendig, alle skal jo være våre meldinger
+
+				for len(msgAcks) > 0 {
 					adminRChan <- msgAcks[0].Message
-					msgAcks = append(msgAcks[:0], msgAcks[1:]...) // Denne må løses med while-løkke. Her slettes alle.
+					msgAcks = append(msgAcks[:0], msgAcks[1:]...)
 					seqs[ownID]++
-					//}
-					//msgAcks = append(msgAcks[:i], msgAcks[i+1:]...)
 				}
 
 				ownSeqStart = seqs[ownID]
@@ -337,96 +299,35 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 			sendBackupToAckChan <- backupToSend
 		//Legg til case for tatt imot backup en plass
 
-		case gotBackupFromSomeoneElse := <-backupRx:
-			fmt.Println("NW: gotBackupFromSomeoneElse: ", gotBackupFromSomeoneElse)
-			if gotBackupFromSomeoneElse.SenderID != ownID {
-				sendBackupToAckChan <- gotBackupFromSomeoneElse
+	case recievedBackup := <-backupRx:
+			fmt.Println("NW: gotBackupFromSomeoneElse: ", recievedBackup)
+			if recievedBackup.SenderID != ownID {
+				sendBackupToAckChan <- recievedBackup
 			} //Legg til previousBackup og test om den har blitt mottatt tidligere for bedre kode.
 
 		case u := <-adminTChan:
-			// Når en får beskjed fra admin om noe: legg inn i sende-struct,
-			// create den siste lista, legg til sin egen ID som en som vet om,
-			// send via bcast Transmitter. (helloTx-kanalen so far)
-
 			// NB!!! Send rett tilbake hvis ingen andre på nett.
 
 			//if lastMessage != u {
-				fmt.Println("NW: len(currentPeers)", len(currentPeers))
+				//fmt.Println("NW: len(currentPeers)", len(currentPeers))
 				if len(currentPeers) == 1 {
-					//TA BORT YTRE KNAPPER
-					//FUNGERER IKKE:  TAR IKKE BORT YTRE KNAPPER; TAR IKKE BORT NOEN.
-					// De Morgan's law (bør fungere):
 
 					outsideDownPressed := (u.Type == "ButtonPressed") && (u.ExtraInfo == BUTTON_CALL_DOWN)
 					outsideUpPressed := (u.Type == "ButtonPressed") && (u.ExtraInfo == BUTTON_CALL_UP)
 
 					if !outsideDownPressed && !outsideUpPressed {
 						adminRChan <- u
-					} else {
-						//Ta bort før presentasjon
-						fmt.Println("NW: I single elevator mode, pressing outer buttons doesn't do anything")
 					}
-					fmt.Println("NW: (single): Melding", u)
+					//fmt.Println("NW: (single): Melding", u)
 				} else {
 
 					adminToAckChan <- u
-					fmt.Println("NW: (not alone): Melding", u)
+					//fmt.Println("NW: (not alone): Melding", u)
 
 					//lastMessage = u
 				}
 			//}
 
-		/*case recv := <-helloRx:
-		fmt.Println("NW: Received from helloRx: ", recv)
-
-			if recv.ThisIsAnAck {
-				receivedFromOthersToAckChan <- recv
-			} else if recv.Message.ID != ownID {
-				receivedFromOthersToAckChan <- recv
-			}
-		receivedFromOthersToAckChan <- recv*/
-
-		//If vår ID, send to ack (receivedFromOthersToAckChan)
-		/*switch recv.Message.ID { // SISTE KOMMENTAR: Tror ikke det her trengs, da alle vil sendes til ack.
-		case ownID:
-			receivedFromOthersToAckChan <- recv
-		default:
-			previouslyReceivedFrom := false
-			for i, m := range previousMessage { // Går greit å iterere over tom slice også.
-				if recv.ID == m.ID {
-					previouslyReceivedFrom = true
-					if recv != m {
-						previousMessage = append(previousMessage[:i], previousMessage[i+1:]...)
-						previousMessage = append(previousMessage, Udp{NOT_VALID, "NOT_VALID", NOT_VALID, NOT_VALID}) //What Udp message this is doesn't matter as it will not be added.
-						copy(previousMessage[i+1:], previousMessage[i:])
-						previousMessage[i] = recv
-						receivedFromOthersToAckChan <- recv
-						break // THIS WORKS
-						// Skal dette bare sendes ut til nettet? Løsn: Nei, ser bra ut sånn
-						// Men: Bør kanskje ha et Ack-felt som det står i OverNetwork så
-						// vi vet om meldingen kommer fra kilden eller ikke => hjelper nok
-						// når det gjelder rekkefølge. Legger da bare til de som IKKE har
-						// Ack her (altså, Ack == false). Ack == true vil sendes til ackdel...
-						// Nei. Ack == true && ID lik ownID => til ack => skal telle opp på Counter.
-						// Ack == false => melding fra noen andre, håndteres som står her.
-						// ^Legg til etter resten er fikset. Note2: Ack vil bare være i caset over => ubrukelig
-						// MOST IMPORTANT NOTE: Trenger virkelig ack for å skille mellom egne meldinger og meldinger som sendes som retur.
-						// Ack kan godt ha ID med seg også, slik at vi IKKE trenger dette med previousMessage/rekkefølge på meldingene
-						// vil bli tatt hånd om.
-					}
-				}
-			}
-			if !previouslyReceivedFrom {
-				previousMessage = append(previousMessage, recv)
-				receivedFromOthersToAckChan <- recv
-				// Skal dette bare sendes ut til nettet?
-				// Ikke tidligere tatt fra -> Til admin. Men skal til ack først?
-			}
-		}
-		fmt.Println("hei", recv)
-		// Else, check om den er lik den siste meldingen vi fikk fra den heisen. If so,
-		// gjør ingenting. If not, send ut + send til admin.
-		*/
 
 		case p := <-peerUpdateCh:
 			fmt.Printf("Peer update:\n")
@@ -437,7 +338,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 			if init {
 				var peersOnlineAtConnection CurrPeers
 				var peersInt []int
-				for i := range p.Peers { // Need to make strings ints
+				for i := range p.Peers {
 					peerIDInt, _ := strconv.Atoi(p.Peers[i])
 					peersInt = append(peersInt, peerIDInt)
 				}
@@ -480,31 +381,17 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 							peerChangeChan <- Peer{"Lost", lostID}
 						}
 					}
-					/*
-						for i, m := range previousMessage {
-							if lostID == m.ID {
-								previousMessage = append(previousMessage[:i], previousMessage[i+1:]...)
-								break
-							}
-						}
-					*/
+
 				}
 
 				//Needs some new name
 				var currPeersToAck CurrPeers
-				// Alternativt: currPeersToAck := CurrPeers{} Gjør det samme
 				currPeersToAck.Peers = currentPeers
 				ackCurrentPeersChan <- currPeersToAck
 				fmt.Println("NW: currentPeers etter lost er tatt ut: ", currentPeers)
 			}
 
-			//fmt.Printf("Received: %#v\n", a)
-			// Når WhoKnowsAboutThis bare er -1, skal resten av structen sendes til admin
-			// Ellers skal vi legge til vår egen ID i WhoKnowsAboutThis (hvis den ikke er der),
-			// så sende meldingen (ellers) uendret ut igjen.
 
-			// Husk å send på nytt
 		}
-		//time.Sleep(1 * time.Second)
 	}
 }

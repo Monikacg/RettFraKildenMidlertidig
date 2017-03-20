@@ -250,7 +250,7 @@ initLoop:
 					SetState(properties, ID, DOOR_OPEN)
 					AssignOrders(orders, m.Floor, ID)
 					CompleteOrder(orders, m.Floor, ID)
-
+					fmt.Println("Adm: Orders at ", m.Floor, " when I get stopped back: ", orders)
 					fmt.Println("Adm: Fått Stopped tilbake. Properties: ", properties)
 
 				case "DrovePast":
@@ -263,11 +263,12 @@ initLoop:
 					AssignOrders(orders, m.Floor, ID)
 					SetState(properties, ID, MOVING)
 					SetDirn(properties, ID, GetNewDirection(m.Floor, GetLastFloor(properties, ID)))
+					fmt.Println("Adm: Orders at floor ", m.Floor, " now belongs to me. Orders now: ", orders)
 					fmt.Println("Adm: NewOrder kommer rundt. Properties: ", properties)
 				case "Idle":
 					// Samme som over. Nada.
 					SetState(properties, m.ID, IDLE)
-					fmt.Println("Adm: Idle kommer rundt, setter state=IDLE. Properties: ", properties)
+					fmt.Println("Adm: Idle kommer rundt, setter state=IDLE. Orders, properties: ", orders, properties)
 				}
 
 			default: //Any other lift
@@ -292,7 +293,7 @@ initLoop:
 					localOrderChan <- Order{"LIGHT", BUTTON_CALL_DOWN, m.Floor, OFF}
 					SetState(properties, m.ID, DOOR_OPEN)
 					SetLastFloor(properties, m.ID, m.Floor)
-					fmt.Println("Adm: Properties inne i samme case: ", properties)
+					fmt.Println("Adm: The ID of the lift that stopped, orders, properties: ", m.ID, orders, properties)
 				case "DrovePast":
 					fmt.Println("Adm: Får tilbake fra network, annen heis, DrovePast")
 					SetLastFloor(properties, m.ID, m.Floor)
@@ -304,12 +305,13 @@ initLoop:
 					AssignOrders(orders, m.Floor, m.ID)
 					SetState(properties, m.ID, MOVING)
 					SetDirn(properties, m.ID, GetNewDirection(m.Floor, GetLastFloor(properties, m.ID)))
+					fmt.Println("Adm: Orders at floor ", m.Floor, " now belongs to ", m.ID ," . Orders now: ", orders)
 					fmt.Println("Adm: Properties inne i samme case: ", properties)
 
 				case "Idle":
 					fmt.Println("Adm: Får tilbake fra network, annen heis, Idle")
 					SetState(properties, m.ID, IDLE)
-					fmt.Println("Adm: Properties inne i samme case: ", properties)
+					fmt.Println("Adm: Orders, properties inne i samme case: ", orders, properties)
 				}
 			}
 
