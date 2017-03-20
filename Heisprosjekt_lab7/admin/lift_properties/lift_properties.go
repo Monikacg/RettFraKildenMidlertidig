@@ -8,7 +8,7 @@ func InitializeLiftProperties() []int {
 	properties := make([]int, 3*MAX_N_LIFTS)
 	for i := 0; i < MAX_N_LIFTS; i++ {
 		properties[3*i] = NOT_VALID   // Last floor
-		properties[3*i+1] = NOT_VALID // Direction
+		properties[3*i+1] = DIRN_DOWN // Direction
 		properties[3*i+2] = INIT      // State
 	}
 	return properties
