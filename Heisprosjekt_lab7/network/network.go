@@ -81,6 +81,7 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 				}
 				msgAcks[i].Ackers = temp
 			}
+			ownSeqStart = seqs[ownID]
 
 			fmt.Println("NW::senAcks: Mottatt currentPeers, ny peers: ", peers)
 
