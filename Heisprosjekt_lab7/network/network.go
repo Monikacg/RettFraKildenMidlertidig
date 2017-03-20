@@ -50,7 +50,7 @@ func backupSender(backupTx chan<- BackUp, backupSenderChan <-chan BackUp) {
 // Bare slett om de kan slettes i riktig rekkefølge (sekvensnummer)
 
 // VIKTIGST Å TEST OM MSGACKTIMER SLÅR UT RIKTIG NÅR DEN BLIR RESATT SÅ OFTE.
-func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan <-chan Udp, receivedFromOthersToAckChan <-chan OverNetwork,
+func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan <-chan Udp, helloRx <-chan OverNetwork,
 	adminRChan chan<- Udp, sendBackupToAckChan <-chan BackUp, backupRChan chan<- BackUp, messageSenderChan chan<- OverNetwork, backupSenderChan chan<- BackUp) {
 	ownID := IDInput
 	var peers []int
@@ -92,7 +92,6 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			newAck.SequenceNumber = seqs[ownID]
 			//newAck.Counter = numberOfTimeouts
 
-
 			msgAcks = append(msgAcks, newAck)
 			//fmt.Println("NW::senAcks: msgAcks etter msgToSend er lagt til: ", msgAcks)
 			var newMessage OverNetwork
@@ -118,7 +117,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			//
 			//msgAckTimer = time.NewTimer(timeout)
 
-		case recvMsg := <-receivedFromOthersToAckChan:
+		case recvMsg := <-helloRx:
 			fmt.Println("NW::senAcks: Message received, MELLOMROM, current msgAcks: ", recvMsg, msgAcks)
 
 			// Tenker at det her fungerer nå, men sent, så sikkert lurt å sjekke igjen når en er våken.
@@ -200,10 +199,9 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 			switch backup.SenderID {
 			case ownID:
 				//Send 2-5 times
-				for i := 0; i < numberOfNewMessages; i++ {//Må sjekke om peer allerede er i aliveLifts
+				for i := 0; i < numberOfNewMessages; i++ { //Må sjekke om peer allerede er i aliveLifts
 					backupSenderChan <- backup
 				}
-
 
 			//gotBackupFromSomeoneElse
 			default:
@@ -219,9 +217,9 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 					if len(ack.Ackers) >= len(peers)-1 {
 						adminRChan <- ack.Message
 						indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
-					} else {
-						msgAcks[i].Ackers = []int{}
-					}
+					} //else {
+					//msgAcks[i].Ackers = []int{} // ta bort?
+					//}
 				}
 
 				/*else if msgAcks[i].Counter <= 0 {
@@ -229,7 +227,6 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 					indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
 					fmt.Println("NW::senAcks: Kaster ut en ack, denne: ", msgAcks[i])
 				}*/
-
 
 				for k, i := range indexOfMessagesToDelete {
 					msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
@@ -245,7 +242,7 @@ func sendAcks(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan 
 					}
 				}
 				msgAckTimer = time.NewTimer(timeout)
-			} else {
+			} else { // Ingen andre funnet på nettet.
 				//fmt.Println("This means we have lost some other lift (or our connection)")
 				//fmt.Println("Decide if we should remove all in acks (and previousMessages?) or not. ")
 				//fmt.Println("PreviousMessages when Lost. acks here.")
@@ -279,7 +276,6 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 
 	init := true
 
-
 	//var previousMessage []Udp // Eq to previousMessage := []Udp{} Brukes ikke akkurat nå
 	// var previousBackup []BackUp LEGG INN HVIS DET FØLES LURT.
 
@@ -290,7 +286,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 
 	ackCurrentPeersChan := make(chan CurrPeers, 100) // ENDRE! LAG STRUCT FOR currentPeers.
 	adminToAckChan := make(chan Udp, 100)
-	receivedFromOthersToAckChan := make(chan OverNetwork, 100)
+	//receivedFromOthersToAckChan := make(chan OverNetwork, 100)
 	sendBackupToAckChan := make(chan BackUp, 100)
 	//outPutCh := make(chan Udp, 100)
 	const timeout = 200 * time.Millisecond
@@ -307,12 +303,11 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 	*/
 
 	helloTx := make(chan OverNetwork)
-	helloRx := make(chan OverNetwork)
+	helloRx := make(chan OverNetwork, 100)
 	//go bcast.Transmitter(16570, id, helloTx) Dette var før, når Anders lagde funksjon. Funksjon fungerte ikke.
 	//go bcast.Receiver(16570, id, false, helloRx) ---""----
 	go bcast.Transmitter(16570, helloTx)
 	go bcast.Receiver(16570, helloRx)
-
 
 	backupTx := make(chan BackUp)
 	backupRx := make(chan BackUp)
@@ -332,7 +327,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 	go messageSender(helloTx, messageSenderChan)
 	go backupSender(backupTx, backupSenderChan)
 
-	go sendAcks(IDInput, ackCurrentPeersChan, adminToAckChan, receivedFromOthersToAckChan,
+	go checksIncomingMessages(IDInput, ackCurrentPeersChan, adminToAckChan, helloRx,
 		adminRChan, sendBackupToAckChan, backupRChan, messageSenderChan, backupSenderChan)
 	/*
 		c := CurrPeers{}
@@ -387,57 +382,57 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 				}
 			}
 
-		case recv := <-helloRx:
-			fmt.Println("NW: Received from helloRx: ", recv)
-			/*
+		/*case recv := <-helloRx:
+		fmt.Println("NW: Received from helloRx: ", recv)
+
 			if recv.ThisIsAnAck {
 				receivedFromOthersToAckChan <- recv
 			} else if recv.Message.ID != ownID {
 				receivedFromOthersToAckChan <- recv
-			} */
-			receivedFromOthersToAckChan <- recv
+			}
+		receivedFromOthersToAckChan <- recv*/
 
-			//If vår ID, send to ack (receivedFromOthersToAckChan)
-			/*switch recv.Message.ID { // SISTE KOMMENTAR: Tror ikke det her trengs, da alle vil sendes til ack.
-			case ownID:
-				receivedFromOthersToAckChan <- recv
-			default:
-				previouslyReceivedFrom := false
-				for i, m := range previousMessage { // Går greit å iterere over tom slice også.
-					if recv.ID == m.ID {
-						previouslyReceivedFrom = true
-						if recv != m {
-							previousMessage = append(previousMessage[:i], previousMessage[i+1:]...)
-							previousMessage = append(previousMessage, Udp{NOT_VALID, "NOT_VALID", NOT_VALID, NOT_VALID}) //What Udp message this is doesn't matter as it will not be added.
-							copy(previousMessage[i+1:], previousMessage[i:])
-							previousMessage[i] = recv
-							receivedFromOthersToAckChan <- recv
-							break // THIS WORKS
-							// Skal dette bare sendes ut til nettet? Løsn: Nei, ser bra ut sånn
-							// Men: Bør kanskje ha et Ack-felt som det står i OverNetwork så
-							// vi vet om meldingen kommer fra kilden eller ikke => hjelper nok
-							// når det gjelder rekkefølge. Legger da bare til de som IKKE har
-							// Ack her (altså, Ack == false). Ack == true vil sendes til ackdel...
-							// Nei. Ack == true && ID lik ownID => til ack => skal telle opp på Counter.
-							// Ack == false => melding fra noen andre, håndteres som står her.
-							// ^Legg til etter resten er fikset. Note2: Ack vil bare være i caset over => ubrukelig
-							// MOST IMPORTANT NOTE: Trenger virkelig ack for å skille mellom egne meldinger og meldinger som sendes som retur.
-							// Ack kan godt ha ID med seg også, slik at vi IKKE trenger dette med previousMessage/rekkefølge på meldingene
-							// vil bli tatt hånd om.
-						}
+		//If vår ID, send to ack (receivedFromOthersToAckChan)
+		/*switch recv.Message.ID { // SISTE KOMMENTAR: Tror ikke det her trengs, da alle vil sendes til ack.
+		case ownID:
+			receivedFromOthersToAckChan <- recv
+		default:
+			previouslyReceivedFrom := false
+			for i, m := range previousMessage { // Går greit å iterere over tom slice også.
+				if recv.ID == m.ID {
+					previouslyReceivedFrom = true
+					if recv != m {
+						previousMessage = append(previousMessage[:i], previousMessage[i+1:]...)
+						previousMessage = append(previousMessage, Udp{NOT_VALID, "NOT_VALID", NOT_VALID, NOT_VALID}) //What Udp message this is doesn't matter as it will not be added.
+						copy(previousMessage[i+1:], previousMessage[i:])
+						previousMessage[i] = recv
+						receivedFromOthersToAckChan <- recv
+						break // THIS WORKS
+						// Skal dette bare sendes ut til nettet? Løsn: Nei, ser bra ut sånn
+						// Men: Bør kanskje ha et Ack-felt som det står i OverNetwork så
+						// vi vet om meldingen kommer fra kilden eller ikke => hjelper nok
+						// når det gjelder rekkefølge. Legger da bare til de som IKKE har
+						// Ack her (altså, Ack == false). Ack == true vil sendes til ackdel...
+						// Nei. Ack == true && ID lik ownID => til ack => skal telle opp på Counter.
+						// Ack == false => melding fra noen andre, håndteres som står her.
+						// ^Legg til etter resten er fikset. Note2: Ack vil bare være i caset over => ubrukelig
+						// MOST IMPORTANT NOTE: Trenger virkelig ack for å skille mellom egne meldinger og meldinger som sendes som retur.
+						// Ack kan godt ha ID med seg også, slik at vi IKKE trenger dette med previousMessage/rekkefølge på meldingene
+						// vil bli tatt hånd om.
 					}
 				}
-				if !previouslyReceivedFrom {
-					previousMessage = append(previousMessage, recv)
-					receivedFromOthersToAckChan <- recv
-					// Skal dette bare sendes ut til nettet?
-					// Ikke tidligere tatt fra -> Til admin. Men skal til ack først?
-				}
 			}
-			fmt.Println("hei", recv)
-			// Else, check om den er lik den siste meldingen vi fikk fra den heisen. If so,
-			// gjør ingenting. If not, send ut + send til admin.
-			*/
+			if !previouslyReceivedFrom {
+				previousMessage = append(previousMessage, recv)
+				receivedFromOthersToAckChan <- recv
+				// Skal dette bare sendes ut til nettet?
+				// Ikke tidligere tatt fra -> Til admin. Men skal til ack først?
+			}
+		}
+		fmt.Println("hei", recv)
+		// Else, check om den er lik den siste meldingen vi fikk fra den heisen. If so,
+		// gjør ingenting. If not, send ut + send til admin.
+		*/
 
 		case p := <-peerUpdateCh:
 			fmt.Printf("Peer update:\n")
@@ -487,7 +482,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 				for _, lostID := range lostSlice {
 					for i, previouslyAliveID := range currentPeers {
 						if lostID == previouslyAliveID { //Assumes you never get your own ID here, but haven't tested...
-							currentPeers = append(currentPeers[:i], currentPeers[i+1:]...)
+							currentPeers = append(currentPeers[:i], currentPeers[i+1:]...) // endre, bør tas bort på annen måte?
 							peerChangeChan <- Peer{"Lost", lostID}
 						}
 					}
