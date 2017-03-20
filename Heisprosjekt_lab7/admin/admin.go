@@ -152,6 +152,7 @@ initLoop:
 
 		case f := <-floorSensorChan:
 			fmt.Println("Adm: initLoop, floor Sensor") // NOTE: NEEDS DIRN_DOWN SET FURTHER UP.
+			SetLastFloor(properties, ID, f)
 			localOrderChan <- Order{"FLOOR_LIGHT", NOT_VALID, f, ON}
 			localOrderChan <- Order{"DIRN", DIRN_STOP, NOT_VALID, ON}
 			startTimerChan <- "DOOR_OPEN"
@@ -199,6 +200,7 @@ initLoop:
 				// See DOOR_OPEN
 			case MOVING:
 				if fs != GetLastFloor(properties, ID) {
+					SetLastFloor(properties, ID, fs)
 					localOrderChan <- Order{"FLOOR_LIGHT", NOT_VALID, fs, ON}
 					//fmt.Println("Adm: Verdier på vei inn i Should_stop: (orders, properties, fs, ID)")
 					//fmt.Println("Adm: ", orders, properties, fs, ID)
