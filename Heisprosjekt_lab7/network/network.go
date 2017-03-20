@@ -174,9 +174,12 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 						//fmt.Println("NW: Fått melding, sender ack. Melding: ", recvMsg.Message)
 						recvMsg.ThisIsAnAck = true
 						recvMsg.AckersID = ownID
-						adminRChan <- recvMsg.Message
 						messageSenderChan <- recvMsg
-						seqs[recvMsg.Message.ID]++
+						if recvMsg.SequenceNumber == seqs[recvMsg.Message.ID] {
+							adminRChan <- recvMsg.Message
+							seqs[recvMsg.Message.ID]++
+						}
+
 					}
 
 				}
@@ -283,14 +286,10 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 
 	var currentPeers []int //:= make([]int, 0, MAX_N_LIFTS)
 	currentPeers = append(currentPeers, ownID)
-	// for test:
-	//currentPeers = append(currentPeers, 1)
 
 	ackCurrentPeersChan := make(chan CurrPeers, 100) // ENDRE! LAG STRUCT FOR currentPeers.
 	adminToAckChan := make(chan Udp, 100)
-	//receivedFromOthersToAckChan := make(chan OverNetwork, 100)
 	sendBackupToAckChan := make(chan BackUp, 100)
-	//outPutCh := make(chan Udp, 100)
 	const timeout = 200 * time.Millisecond
 
 	id := strconv.Itoa(ownID)
@@ -300,9 +299,6 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 	go peers.Transmitter(15640, id, peerTxEnable) //15647
 	go peers.Receiver(15640, peerUpdateCh)        //15647
 
-	/*
-		Lag en struct som er Udp-strukten+ack-felt som sier hvem som vet om beskjeden, ok ide?
-	*/
 
 	helloTx := make(chan OverNetwork)
 	helloRx := make(chan OverNetwork, 100)
@@ -316,11 +312,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 	go bcast.Transmitter(16571, backupTx)
 	go bcast.Receiver(16571, backupRx)
 
-	//localAckCh := make(chan Udp, 100)
-
-	//outPutCh := make(chan Udp, 100)
-
-	lastMessage := Udp{NOT_VALID, "Test", NOT_VALID, NOT_VALID} // Eller bare tom?
+	//lastMessage := Udp{NOT_VALID, "Test", NOT_VALID, NOT_VALID} // Eller bare tom?
 
 	fmt.Println("NW: Started")
 
@@ -358,7 +350,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 
 			// NB!!! Send rett tilbake hvis ingen andre på nett.
 
-			if lastMessage != u {
+			//if lastMessage != u {
 				fmt.Println("NW: len(currentPeers)", len(currentPeers))
 				if len(currentPeers) == 1 {
 					//TA BORT YTRE KNAPPER
@@ -380,9 +372,9 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 					adminToAckChan <- u
 					fmt.Println("NW: (not alone): Melding", u)
 
-					lastMessage = u
+					//lastMessage = u
 				}
-			}
+			//}
 
 		/*case recv := <-helloRx:
 		fmt.Println("NW: Received from helloRx: ", recv)
