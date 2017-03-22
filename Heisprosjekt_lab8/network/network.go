@@ -37,17 +37,16 @@ func backupSender(backupTx chan<- BackUp, backupSenderChan <-chan BackUp) {
 	}
 }
 
-func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan <-chan Udp, helloRx <-chan OverNetwork,
-	adminRChan chan<- Udp, sendBackupToAckChan <-chan BackUp, backupRChan chan<- BackUp, messageSenderChan chan<- OverNetwork, backupSenderChan chan<- BackUp) {
+func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan <-chan Message, helloRx <-chan OverNetwork,
+	adminRChan chan<- Message, sendBackupToAckChan <-chan BackUp, backupRChan chan<- BackUp, messageSenderChan chan<- OverNetwork, backupSenderChan chan<- BackUp) {
 	ownID := IDInput
 	var peers []int
 	const timeout = 3000 * time.Millisecond
 
-	//numberOfTimeouts := 3 // Bør tas vekk når sequence number? eller settes til numberOfTimeouts igjen når en slettes? <- kanskje bedre
-
 	var msgAcks []Ack
 	var ownSeqStart int
 	seqs := make([]int, MAX_N_LIFTS)
+	lastSeqsStartsRecv := make([]int, MAX_N_LIFTS) // TO REMOVE PROBLEM WHEN ONE LIFT GETS BACK ONLINE.
 
 	resendTimer := time.NewTimer(timeout)
 
@@ -66,7 +65,7 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 				}
 				msgAcks[i].Ackers = temp
 			}
-			ownSeqStart = seqs[ownID]
+			//ownSeqStart = seqs[ownID] // NB! FEIL? Trengs ikke for oss. Kan bli feil hvis det her legges til.
 
 			fmt.Println("NW::senAcks: Mottatt currentPeers, ny peers: ", peers)
 
@@ -80,11 +79,12 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 
 			msgAcks = append(msgAcks, newAck)
 			//fmt.Println("NW::senAcks: msgAcks etter msgToSend er lagt til: ", msgAcks)
+
+			// Send message
 			var newMessage OverNetwork
 			newMessage.Message = msgToSend
 			newMessage.SequenceStart = ownSeqStart
 			newMessage.SequenceNumber = seqs[ownID]
-
 			messageSenderChan <- newMessage
 			seqs[ownID]++
 
@@ -94,7 +94,7 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 			if recvMsg.ThisIsAnAck {
 				// Checks that it is from someone else and that it is originally sent out by this lift.
 				if recvMsg.AckersID != ownID {
-					var indexOfMessagesToDelete []int
+					var indicesOfMessagesToRemove []int
 					if recvMsg.Message.ID == ownID {
 
 						for i, ack := range msgAcks {
@@ -111,20 +111,23 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 								if len(peers) > 1 {
 									if len(msgAcks[i].Ackers) >= len(peers)-1 {
 										adminRChan <- ack.Message
-										indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
+										indicesOfMessagesToRemove = append(indicesOfMessagesToRemove, i)
+									} else {
+										break // Assures that messages return in correct order
 									} /*else if msgAcks[i].Counter <= 0 { // erstatt med or?
 										adminRChan <- ack.Message
 										//msgAcks = append(msgAcks[:i], msgAcks[i+1:]...) Kan ikke stå her siden det endrer på for-løkka.
-										indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
+										indicesOfMessagesToRemove = append(indicesOfMessagesToRemove, i)
 									}*/
 								}
 							}
 						}
 					}
 					//fmt.Println("NW: msgAcks in messages to delete: ", msgAcks)
-					//fmt.Println("NW: indexOfMessagesToDelete: ", indexOfMessagesToDelete)
-					for k, i := range indexOfMessagesToDelete {
+					//fmt.Println("NW: indicesOfMessagesToRemove: ", indicesOfMessagesToRemove)
+					for k, i := range indicesOfMessagesToRemove {
 						msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
+						ownSeqStart++
 					}
 
 				}
@@ -132,9 +135,15 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 			} else {
 				if recvMsg.Message.ID != ownID {
 					// New message from someone else
-					if recvMsg.SequenceStart > seqs[recvMsg.Message.ID] {
+
+					if recvMsg.SequenceStart > seqs[recvMsg.Message.ID] { // Skal ikke skje, bare for å være sikker.
+						seqs[recvMsg.Message.ID] = recvMsg.SequenceStart
+					} else if recvMsg.SequenceStart < lastSeqsStartsRecv[recvMsg.Message.ID] { // NOTE: IKKE TESTET
 						seqs[recvMsg.Message.ID] = recvMsg.SequenceStart
 					}
+
+					lastSeqsStartsRecv[recvMsg.Message.ID] = recvMsg.SequenceStart // NEW
+
 					if recvMsg.SequenceNumber <= seqs[recvMsg.Message.ID] {
 						//fmt.Println("NW: Fått melding, sender ack. Melding: ", recvMsg.Message)
 						recvMsg.ThisIsAnAck = true
@@ -166,31 +175,34 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 
 		case <-resendTimer.C:
 			//fmt.Println("NW::senAcks: Got timeout (msgacks). MsgAcks at timeout: ", msgAcks)
-			var indexOfMessagesToDelete []int
+			var indicesOfMessagesToRemove []int
 			if len(peers) > 1 {
 				for i, ack := range msgAcks {
 					//msgAcks[i].Counter--
 					if len(ack.Ackers) >= len(peers)-1 {
 						adminRChan <- ack.Message
-						indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
+						indicesOfMessagesToRemove = append(indicesOfMessagesToRemove, i)
+					} else {
+						break // Assures that messages return in correct order
 					}
 				}
 
 				/*else if msgAcks[i].Counter <= 0 {
 					adminRChan <- ack.Message
-					indexOfMessagesToDelete = append(indexOfMessagesToDelete, i)
+					indicesOfMessagesToRemove = append(indicesOfMessagesToRemove, i)
 					fmt.Println("NW::senAcks: Kaster ut en ack, denne: ", msgAcks[i])
 				}*/
 
-				for k, i := range indexOfMessagesToDelete {
+				for k, i := range indicesOfMessagesToRemove {
 					msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
+					ownSeqStart++
 				}
 
 				// Resend all not acked.
 				for _, ack := range msgAcks {
 					var newMessage OverNetwork
 					newMessage.Message = ack.Message
-					newMessage.SequenceStart = ack.SequenceStart
+					newMessage.SequenceStart = ownSeqStart // ENDRET FRA FORRIGE GANG.
 					newMessage.SequenceNumber = ack.SequenceNumber
 					messageSenderChan <- newMessage
 				}
@@ -200,10 +212,10 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 				for len(msgAcks) > 0 {
 					adminRChan <- msgAcks[0].Message
 					msgAcks = append(msgAcks[:0], msgAcks[1:]...)
-					seqs[ownID]++
+					ownSeqStart++ //Used to be seqs[ownID]++, tror ikke det var riktig
 				}
 
-				ownSeqStart = seqs[ownID]
+				//ownSeqStart = seqs[ownID] trengs ikke det her
 
 			}
 			//fmt.Println("NW::senAcks: Got timeout (msgacks). MsgAcks AFTER LOOPS: ", msgAcks)
@@ -214,7 +226,7 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 }
 
 // Network starts the network module.
-func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTChan <-chan BackUp,
+func Network(IDInput int, adminTChan <-chan Message, adminRChan chan<- Message, backupTChan <-chan BackUp,
 	backupRChan chan<- BackUp, peerChangeChan chan<- Peer, peerInitializeChan chan<- CurrPeers) {
 
 	ownID := IDInput
@@ -225,7 +237,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 	currentPeers = append(currentPeers, ownID)
 
 	ackCurrentPeersChan := make(chan CurrPeers, 100)
-	adminToAckChan := make(chan Udp, 100)
+	adminToAckChan := make(chan Message, 100)
 	sendBackupToAckChan := make(chan BackUp, 100)
 	const timeout = 200 * time.Millisecond
 
@@ -273,8 +285,8 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 		case newMessageToSend := <-adminTChan:
 			if len(currentPeers) == 1 {
 
-				outsideDownPressed := (newMessageToSend.Type == "ButtonPressed") && (newMessageToSend.ButtonDirection == BUTTON_CALL_DOWN)
-				outsideUpPressed := (newMessageToSend.Type == "ButtonPressed") && (newMessageToSend.ButtonDirection == BUTTON_CALL_UP)
+				outsideDownPressed := (newMessageToSend.Info == "Button pressed") && (newMessageToSend.ButtonDirection == BUTTON_CALL_DOWN)
+				outsideUpPressed := (newMessageToSend.Info == "Button pressed") && (newMessageToSend.ButtonDirection == BUTTON_CALL_UP)
 
 				if !outsideDownPressed && !outsideUpPressed {
 					adminRChan <- newMessageToSend
