@@ -93,3 +93,18 @@ func OverwriteEverythingButInternalOrders(orders [][]int, liftID int, backupOrde
 		}
 	}
 }
+
+func AnyAssignedOrdersLeft(orders [][]int, liftID int) bool {
+	for floor := 0; floor < N_FLOORS; floor++ {
+		if orders[BUTTON_CALL_UP][floor] == liftID+1 {
+			return true
+		}
+		if orders[BUTTON_CALL_DOWN][floor] == liftID+1 {
+			return true
+		}
+		if orders[BUTTON_COMMAND+liftID][floor] == liftID+1 {
+			return true
+		}
+	}
+	return false
+}

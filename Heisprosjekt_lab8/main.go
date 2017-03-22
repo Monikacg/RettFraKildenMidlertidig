@@ -40,8 +40,8 @@ func main() {
 
 	//go run main.go -id=our_id
 
-	buttonPressedChan := make(chan Button)     // Se under
-	floorSensorTriggeredChan := make(chan int) // Endre til asynkron, siden du kan trykke inn en ytre knapp, så ville ha en lengre ned? test
+	buttonPressedChan := make(chan Button) // Endre til asynkron, siden du kan trykke inn en ytre knapp, så ville ha en lengre ned? test
+	floorSensorTriggeredChan := make(chan int)
 
 	liftInstructionChan := make(chan Instruction) //----""-----
 
@@ -53,8 +53,8 @@ func main() {
 
 	peerInitializeChan := make(chan CurrPeers, 100)
 
-	openDoorChan := make(chan string)
-	closeDoorChan := make(chan string)
+	startTimerChan := make(chan string, 10)
+	timeOutChan := make(chan string, 10)
 
 	var id string
 	flag.StringVar(&id, "id", "", "id of this peer")
@@ -77,8 +77,8 @@ func main() {
 
 	go Admin(IDInput, buttonPressedChan, floorSensorTriggeredChan,
 		liftInstructionChan, adminTChan, adminRChan, backupTChan, backupRChan, peerChangeChan,
-		peerInitializeChan, openDoorChan, closeDoorChan)
+		peerInitializeChan, startTimerChan, timeOutChan)
 
-	go Timer(openDoorChan, closeDoorChan)
+	go Timer(startTimerChan, timeOutChan)
 	wg.Wait()
 }

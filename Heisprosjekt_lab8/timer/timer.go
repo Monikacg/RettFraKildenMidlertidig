@@ -5,20 +5,36 @@ import (
 )
 
 // Timer is used to determine how long a door should stay open.
-func Timer(openDoorChan <-chan string, closeDoorChan chan<- string) {
+func Timer(startTimerChan <-chan string, timeOutChan chan<- string) {
 	for {
 		select {
-		case <-openDoorChan:
-			go startDoorOpenTimer(closeDoorChan)
+		case newStart := <-startTimerChan:
+			switch newStart {
+			case "Opening the door now":
+				go startDoorOpenTimer(timeOutChan)
+			case "Entered STUCK state":
+				go startStuckWaitingPeriodTimer(timeOutChan)
+			}
+
 		}
 	}
 }
 
-func startDoorOpenTimer(closeDoorChan chan<- string) {
+func startDoorOpenTimer(timeOutChan chan<- string) {
 	for {
 		select {
 		case <-time.After(3 * time.Second):
-			closeDoorChan <- "Close the door now"
+			timeOutChan <- "Time to close the door"
+			return
+		}
+	}
+}
+
+func startStuckWaitingPeriodTimer(timeOutChan chan<- string) {
+	for {
+		select {
+		case <-time.After(15 * time.Second):
+			timeOutChan <- "Time to exit STUCK state and see if the engine is working"
 			return
 		}
 	}

@@ -18,6 +18,7 @@ const (
 	IDLE      = 0
 	MOVING    = 1
 	DOOR_OPEN = 2
+	STUCK     = 3
 
 	// Button calls
 	BUTTON_CALL_UP   = 0
@@ -47,9 +48,9 @@ type Instruction struct {
 	Value    int    // ON/OFF for lys, settes bare for "LIGHT"
 } // Floor trengs ikke på doorlight, value trengs ikke på retn.
 
-type Udp struct {
+type Message struct {
+	Info            string
 	ID              int
-	Type            string
 	Floor           int
 	ButtonDirection int
 }
@@ -59,14 +60,14 @@ type OverNetwork struct {
 	AckersID       int
 	SequenceStart  int
 	SequenceNumber int
-	Message        Udp
+	Message
 }
 
 type Ack struct {
 	SequenceStart  int
 	SequenceNumber int
-	Message        Udp
-	Ackers         []int
+	Message
+	Ackers []int
 	//Counter int
 }
 
