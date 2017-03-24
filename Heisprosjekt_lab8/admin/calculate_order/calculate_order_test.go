@@ -124,13 +124,13 @@ func TestFn(t *testing.T) {
 	fmt.Println("Properties: ", properties)
 
 	AddOrder(orders, 2, ID, BUTTON_CALL_UP)
-	newDirn, newDest = CalculateNextOrder(orders, ID, properties, aliveLifts)
+	newDirn, newDest = CalculateNextOrder(orders, properties, aliveLifts, ID)
 	fmt.Println("Three: This elevator is closest, but moving down. Should not call this function, so no idea. It ends up with -2, -2, so that's great.")
 	fmt.Println(newDirn, newDest)
-	newDirn, newDest = CalculateNextOrder(orders, ID1, properties, aliveLifts)
+	newDirn, newDest = CalculateNextOrder(orders, properties, aliveLifts, ID1)
 	fmt.Println("Three: This elevator should take the order, should be 1 2 (up, 2)")
 	fmt.Println(newDirn, newDest)
-	newDirn, newDest = CalculateNextOrder(orders, ID2, properties, aliveLifts)
+	newDirn, newDest = CalculateNextOrder(orders, properties, aliveLifts, ID2)
 	fmt.Println("Three: This elevator is one of the ones further away, should be -2 -2 (NOT_VALID, NOT_VALID)")
 	fmt.Println(newDirn, newDest)
 

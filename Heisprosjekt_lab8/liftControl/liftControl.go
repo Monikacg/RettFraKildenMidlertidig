@@ -33,7 +33,7 @@ func checkForOrdersFromAdmin(liftInstructionChan <-chan Instruction) {
 				if newInstruction.Order == DIRN_STOP {
 					Elev_set_motor_direction(DIRN_STOP)
 					Elev_set_door_open_lamp(ON)
-				} else {
+				} else { // Start driving in a direction
 					Elev_set_motor_direction(newInstruction.Order)
 				}
 			case "Set floor indicator light":

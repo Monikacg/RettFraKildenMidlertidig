@@ -29,9 +29,9 @@ func messageSender(helloTx chan<- OverNetwork, messageSenderChan <-chan OverNetw
 func backupSender(backupTx chan<- BackUp, backupSenderChan <-chan BackUp) {
 	for {
 		select {
-		case bu := <-backupSenderChan:
+		case backup := <-backupSenderChan:
 			//fmt.Println("NW::backupSender: Sending this: ", bu)
-			backupTx <- bu
+			backupTx <- backup
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
