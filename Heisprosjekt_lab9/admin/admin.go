@@ -24,30 +24,32 @@ func Admin(IDInput int, buttonPressedChan <-chan Button, floorSensorTriggeredCha
 	//const stuckTimeout = 10 * time.Second
 
 	// Test and try to see if this is redundant => that New/Lost would be enough
-getAliveLiftsLoop:
-	for {
-		select {
-		case totalPeers := <-peerInitializeChan:
-			aliveLifts = totalPeers.Peers
-			break getAliveLiftsLoop
-		case <-time.After(2 * time.Second):
-			break getAliveLiftsLoop
-		}
-	}
+	/*
+		getAliveLiftsLoop:
+			for {
+				select {
+				case totalPeers := <-peerInitializeChan:
+					aliveLifts = totalPeers.Peers
+					break getAliveLiftsLoop
+				case <-time.After(2 * time.Second):
+					break getAliveLiftsLoop
+				}
+			}
 
-	inList := false
-	fmt.Println("Adm: aliveLifts etter første loop: ", aliveLifts)
-	for _, peer := range aliveLifts {
-		if peer == ownID {
-			inList = true
-		}
-	}
+			inList := false
+			fmt.Println("Adm: aliveLifts etter første loop: ", aliveLifts)
+			for _, peer := range aliveLifts {
+				if peer == ownID {
+					inList = true
+				}
+			}
 
-	if !inList {
-		aliveLifts = append(aliveLifts, ownID)
-		sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] })
-	}
-	fmt.Println("Adm: aliveLifts etter test om egen id finnes der: ", aliveLifts)
+			if !inList {
+				aliveLifts = append(aliveLifts, ownID)
+				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] })
+			}
+			fmt.Println("Adm: aliveLifts etter test om egen id finnes der: ", aliveLifts)
+	*/
 
 	//All above this line should be redundant if New/Lost is enough.
 
@@ -62,7 +64,7 @@ searchingForBackupLoop:
 		case peerMsg := <-peerChangeChan:
 			switch peerMsg.Change {
 			case "New": //Må sjekke om peer allerede er i aliveLifts
-				fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
+				//fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
 				if len(aliveLifts)-1 == 1 {
 					backupTChan <- BackUp{"I was isolated", ownID, orders, properties}
 				} else {
@@ -94,7 +96,7 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 		case peerMsg := <-peerChangeChan:
 			switch peerMsg.Change {
 			case "New":
-				fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
+				//fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
 				if len(aliveLifts) == 1 {
 					backupTChan <- BackUp{"I was isolated", ownID, orders, properties}
 				} else {
@@ -104,7 +106,7 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] })
 
 			case "Lost":
-				fmt.Println("Adm: Får inn Lost peer. Det er: ", peerMsg.ChangedPeer)
+				//fmt.Println("Adm: Får inn Lost peer. Det er: ", peerMsg.ChangedPeer)
 				for i, lostPeer := range aliveLifts {
 					if lostPeer == peerMsg.ChangedPeer {
 						aliveLifts = append(aliveLifts[:i], aliveLifts[i+1:]...)
@@ -116,7 +118,7 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 			}
 
 		case backupMsg := <-backupRChan:
-			fmt.Println("Adm: Fått inn melding fra backupRChan, melding: ", backupMsg)
+			//fmt.Println("Adm: Fått inn melding fra backupRChan, melding: ", backupMsg)
 			switch backupMsg.Info {
 			case "I was isolated":
 				// Legg inn alle INDRE ordre for backupMsg.SenderID
@@ -132,9 +134,10 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 				SetPropertiesFromBackup(properties, ownID, backupMsg.Properties)
 
 			}
+			fmt.Println("Adm: After this message: ", backupMsg, " orders and properties is: ", orders, properties)
 
 		case f := <-floorSensorTriggeredChan:
-			fmt.Println("Adm: initLoop, floor Sensor")
+			//fmt.Println("Adm: initLoop, floor Sensor")
 			SetLastFloor(properties, ownID, f)
 			liftInstructionChan <- Instruction{"Set floor indicator light", NOT_VALID, f, ON}
 			liftInstructionChan <- Instruction{"Set motor direction", DIRN_STOP, NOT_VALID, ON}
@@ -142,7 +145,8 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 			adminTChan <- Message{"Stopped at floor", ownID, f, NOT_VALID}
 			break initLoop
 
-		case <-time.After(3 * time.Second):
+		//case <-time.After(3 * time.Second):
+		default:
 			SetState(properties, ownID, MOVING)
 			liftInstructionChan <- Instruction{"Set motor direction", DIRN_DOWN, NOT_VALID, NOT_VALID}
 			break initLoop
@@ -182,7 +186,7 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 			}
 
 		case timeOut := <-timeOutChan:
-			fmt.Println("Adm: Fikk timeout")
+			//fmt.Println("Adm: Fikk timeout")
 			switch timeOut {
 			case "Time to close the door":
 				liftInstructionChan <- Instruction{"Close the door", NOT_VALID, NOT_VALID, NOT_VALID}
@@ -213,7 +217,7 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 			}
 
 		case msg := <-adminRChan:
-			fmt.Println("Adm: Fått inn melding fra adminRChan, melding: ", msg)
+			//fmt.Println("Adm: Fått inn melding fra adminRChan, melding: ", msg)
 			switch msg.ID {
 			case ownID:
 				//Alt for egen heis
@@ -222,19 +226,19 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 					fmt.Println("Adm: Får tilbake fra network, ButtonPressed")
 					AddOrder(orders, msg.Floor, msg.ID, msg.ButtonDirection)
 					liftInstructionChan <- Instruction{"Set light in button", msg.ButtonDirection, msg.Floor, ON}
-					fmt.Println("Adm: Samme loop, state og orders: ", GetState(properties, msg.ID), orders)
+					//fmt.Println("Adm: Samme loop, state og orders: ", GetState(properties, msg.ID), orders)
 					if GetState(properties, msg.ID) == IDLE {
-						fmt.Println("Adm: State == IDLE når knapp trykket på")
+						//fmt.Println("Adm: State == IDLE når knapp trykket på")
 						findNewOrder(orders, msg.ID, properties, aliveLifts, startTimerChan, liftInstructionChan, adminTChan)
 					}
-					fmt.Println("Adm: Properties inne i samme case: ", properties)
+					//fmt.Println("Adm: Properties inne i samme case: ", properties)
 				case "Stopped at floor":
 					SetLastFloor(properties, msg.ID, msg.Floor)
 					SetState(properties, msg.ID, DOOR_OPEN)
 					AssignOrders(orders, msg.Floor, msg.ID)
 					CompleteOrders(orders, msg.Floor, msg.ID)
-					fmt.Println("Adm: Orders at ", msg.Floor, " when I get stopped back: ", orders)
-					fmt.Println("Adm: Fått Stopped tilbake. Properties: ", properties)
+					//fmt.Println("Adm: Orders at ", msg.Floor, " when I get stopped back: ", orders)
+					//fmt.Println("Adm: Fått Stopped tilbake. Properties: ", properties)
 					/*
 						if AnyAssignedOrdersLeft(orders, msg.ID) {
 							stuckTimer = time.NewTimer(stuckTimeout)
@@ -245,7 +249,7 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 				case "Drove past floor":
 					SetState(properties, msg.ID, MOVING)
 					SetLastFloor(properties, msg.ID, msg.Floor)
-					fmt.Println("Adm: DrovePast kommer rundt, setter lastFloor/state=MOVING. Properties: ", properties)
+					//fmt.Println("Adm: DrovePast kommer rundt, setter lastFloor/state=MOVING. Properties: ", properties)
 				case "Got assigned a new order":
 					AssignOrders(orders, msg.Floor, msg.ID)
 					SetState(properties, msg.ID, MOVING)
@@ -253,8 +257,8 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 					liftInstructionChan <- Instruction{"Set motor direction", GetNewDirection(msg.Floor, GetLastFloor(properties, msg.ID)), NOT_VALID, NOT_VALID}
 					//stuckTimer = time.NewTimer(stuckTimeout)
 
-					fmt.Println("Adm: Orders at floor ", msg.Floor, " now belongs to me. Orders now: ", orders)
-					fmt.Println("Adm: NewOrder kommer rundt. Properties: ", properties)
+					//fmt.Println("Adm: Orders at floor ", msg.Floor, " now belongs to me. Orders now: ", orders)
+					//fmt.Println("Adm: NewOrder kommer rundt. Properties: ", properties)
 
 				case "I'm stuck":
 					DeassignOrders(orders, msg.ID)
@@ -263,54 +267,54 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 
 				case "Entered IDLE state":
 					SetState(properties, msg.ID, IDLE)
-					fmt.Println("Adm: Idle kommer rundt, setter state=IDLE. Orders, properties: ", orders, properties)
+					//fmt.Println("Adm: Idle kommer rundt, setter state=IDLE. Orders, properties: ", orders, properties)
 				}
 
 			default: //Any other lift
 				switch msg.Info {
 				case "Button pressed":
-					fmt.Println("Adm: Får tilbake fra network, annen heis, ButtonPressed")
+					//fmt.Println("Adm: Får tilbake fra network, annen heis, ButtonPressed")
 					AddOrder(orders, msg.Floor, msg.ID, msg.ButtonDirection)
 					if msg.ButtonDirection == BUTTON_CALL_UP || msg.ButtonDirection == BUTTON_CALL_DOWN {
 						liftInstructionChan <- Instruction{"Set light in button", msg.ButtonDirection, msg.Floor, ON}
-						fmt.Println("Adm: Samme loop, state og orders: ", GetState(properties, msg.ID), orders)
+						//fmt.Println("Adm: Samme loop, state og orders: ", GetState(properties, msg.ID), orders)
 						if GetState(properties, ownID) == IDLE {
-							fmt.Println("Adm: State == IDLE når knapp trykket på, melding fra annen heis")
+							//fmt.Println("Adm: State == IDLE når knapp trykket på, melding fra annen heis")
 							findNewOrder(orders, ownID, properties, aliveLifts, startTimerChan, liftInstructionChan, adminTChan)
 						}
 					}
-					fmt.Println("Adm: Properties inne i samme case: ", properties)
+					//fmt.Println("Adm: Properties inne i samme case: ", properties)
 				case "Stopped at floor":
-					fmt.Println("Adm: Får tilbake fra network, annen heis, Stopped")
+					//fmt.Println("Adm: Får tilbake fra network, annen heis, Stopped")
 					AssignOrders(orders, msg.Floor, msg.ID)
 					CompleteOrders(orders, msg.Floor, msg.ID)
 					liftInstructionChan <- Instruction{"Set light in button", BUTTON_CALL_UP, msg.Floor, OFF}
 					liftInstructionChan <- Instruction{"Set light in button", BUTTON_CALL_DOWN, msg.Floor, OFF}
 					SetState(properties, msg.ID, DOOR_OPEN)
 					SetLastFloor(properties, msg.ID, msg.Floor)
-					fmt.Println("Adm: The ID of the lift that stopped, orders, properties: ", msg.ID, orders, properties)
+					//fmt.Println("Adm: The ID of the lift that stopped, orders, properties: ", msg.ID, orders, properties)
 				case "Drove past floor":
-					fmt.Println("Adm: Får tilbake fra network, annen heis, DrovePast")
+					//fmt.Println("Adm: Får tilbake fra network, annen heis, DrovePast")
 					SetLastFloor(properties, msg.ID, msg.Floor)
 					SetState(properties, msg.ID, MOVING)
-					fmt.Println("Adm: Properties inne i samme case: ", properties)
+					//fmt.Println("Adm: Properties inne i samme case: ", properties)
 
 				case "Got assigned a new order":
-					fmt.Println("Adm: Får tilbake fra network, annen heis, NewOrder")
+					//fmt.Println("Adm: Får tilbake fra network, annen heis, NewOrder")
 					AssignOrders(orders, msg.Floor, msg.ID)
 					SetState(properties, msg.ID, MOVING)
 					SetDirection(properties, msg.ID, GetNewDirection(msg.Floor, GetLastFloor(properties, msg.ID)))
-					fmt.Println("Adm: Orders at floor ", msg.Floor, " now belongs to ", msg.ID, " . Orders now: ", orders)
-					fmt.Println("Adm: Properties inne i samme case: ", properties)
+					//fmt.Println("Adm: Orders at floor ", msg.Floor, " now belongs to ", msg.ID, " . Orders now: ", orders)
+					//fmt.Println("Adm: Properties inne i samme case: ", properties)
 
 				case "I'm stuck":
 					DeassignOrders(orders, msg.ID)
 					SetState(properties, msg.ID, STUCK)
 
 				case "Entered IDLE state":
-					fmt.Println("Adm: Får tilbake fra network, annen heis, Idle")
+					//fmt.Println("Adm: Får tilbake fra network, annen heis, Idle")
 					SetState(properties, msg.ID, IDLE)
-					fmt.Println("Adm: Orders, properties inne i samme case: ", orders, properties)
+					//fmt.Println("Adm: Orders, properties inne i samme case: ", orders, properties)
 				}
 			}
 			/*
@@ -319,36 +323,36 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 			*/
 
 		case backupMsg := <-backupRChan:
-			fmt.Println("Adm: Fått inn melding fra backupRChan, melding: ", backupMsg)
+			//fmt.Println("Adm: Fått inn melding fra backupRChan, melding: ", backupMsg)
 			switch backupMsg.Info {
 			case "I was isolated":
-				fmt.Println("Adm: Fått ny backup (I was alone). Backupmelding: ")
-				fmt.Println(backupMsg)
-				fmt.Println("Adm: Orders before backupcommands: ", orders)
+				//fmt.Println("Adm: Fått ny backup (I was alone). Backupmelding: ")
+				//fmt.Println(backupMsg)
+				//fmt.Println("Adm: Orders before backupcommands: ", orders)
 				// Legg inn alle INDRE ordre for backupMsg.SenderID
 				OverwriteInnerOrders(orders, ownID, backupMsg.Orders, backupMsg.SenderID)
 				// Ta inn properties for backupMsg.SenderID
 				SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
 
-				fmt.Println("Adm: Orders after backupcommands: ", orders)
+				//fmt.Println("Adm: Orders after backupcommands: ", orders)
 
 			case "I was part of a group":
-				fmt.Println("Adm: Fått ny backup (I was NOT alone). Backup melding: ")
-				fmt.Println(backupMsg)
-				fmt.Println("Adm: Orders before backupcommands: ", orders)
+				//fmt.Println("Adm: Fått ny backup (I was NOT alone). Backup melding: ")
+				//fmt.Println(backupMsg)
+				//fmt.Println("Adm: Orders before backupcommands: ", orders)
 				// Skriv over alt i orders minus egne indre ordre.
 				OverwriteEverythingButInternalOrders(orders, ownID, backupMsg.Orders)
 
 				// Behold egne properties, skriv over resten.
 				SetPropertiesFromBackup(properties, ownID, backupMsg.Properties)
-				fmt.Println("Adm: Orders after backupcommands: ", orders)
+				//fmt.Println("Adm: Orders after backupcommands: ", orders)
 
 			}
 
 		case peerMsg := <-peerChangeChan:
 			switch peerMsg.Change {
 			case "New":
-				fmt.Println("Adm: Får inn New peerID. Det er: ", peerMsg.ChangedPeer)
+				//fmt.Println("Adm: Får inn New peerID. Det er: ", peerMsg.ChangedPeer)
 				if len(aliveLifts) == 1 {
 					backupTChan <- BackUp{"I was isolated", ownID, orders, properties}
 				} else {
@@ -358,14 +362,14 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] }) //MÅ FIKSES. NB NB NB
 
 			case "Lost":
-				fmt.Println("Adm: Får inn Lost peer. Det er: ", peerMsg.ChangedPeer)
+				//fmt.Println("Adm: Får inn Lost peer. Det er: ", peerMsg.ChangedPeer)
 				for i, n := range aliveLifts {
 					if n == peerMsg.ChangedPeer {
 						lostPeer := n
 						aliveLifts = append(aliveLifts[:i], aliveLifts[i+1:]...)
 						DeassignOrders(orders, lostPeer)
 						if GetState(properties, ownID) == IDLE {
-							fmt.Println("Adm: State == IDLE, en annen heis er død => kan være nye ordre")
+							//fmt.Println("Adm: State == IDLE, en annen heis er død => kan være nye ordre")
 							findNewOrder(orders, ownID, properties, aliveLifts, startTimerChan, liftInstructionChan, adminTChan)
 						}
 						break
@@ -380,24 +384,24 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 
 func findNewOrder(orders [][]int, ownID int, properties []int, aliveLifts []int, startTimerChan chan<- string,
 	liftInstructionChan chan<- Instruction, adminTChan chan<- Message) {
-	fmt.Println("Adm: Inne i findNewOrder. Orders, properties: ", orders, properties)
+	//fmt.Println("Adm: Inne i findNewOrder. Orders, properties: ", orders, properties)
 
 	newDirn, destination := CalculateNextOrder(orders, properties, aliveLifts, ownID)
 
 	// Default destination and newDirn returned has to be undefined (-2,-2)
-	fmt.Println("Adm: Got new direction", newDirn, destination)
+	//fmt.Println("Adm: Got new direction", newDirn, destination)
 	if newDirn == DIRN_STOP {
-		fmt.Println("Adm: I DIRN_STOP for findNewOrder")
+		//fmt.Println("Adm: I DIRN_STOP for findNewOrder")
 		liftInstructionChan <- Instruction{"Set floor indicator light", NOT_VALID, GetLastFloor(properties, ownID), ON}
 		liftInstructionChan <- Instruction{"Set motor direction", DIRN_STOP, NOT_VALID, ON}
 		startTimerChan <- "Opening the door now"
 		adminTChan <- Message{"Stopped at floor", ownID, GetLastFloor(properties, ownID), NOT_VALID}
 	} else if newDirn == DIRN_DOWN || newDirn == DIRN_UP {
-		fmt.Println("Adm: I DIRN_DOWN/DIRN_UP for findNewOrder")
+		//fmt.Println("Adm: I DIRN_DOWN/DIRN_UP for findNewOrder")
 		adminTChan <- Message{"Got assigned a new order", ownID, destination, NOT_VALID} // ownID, "Moving, desting (new order)", etasje
 	} else {
-		fmt.Println("Adm: I IDLE for findNewOrder")
+		//fmt.Println("Adm: I IDLE for findNewOrder")
 		adminTChan <- Message{"Entered IDLE state", ownID, destination, NOT_VALID} // ownID, "IDLE", etasje
 	}
-	fmt.Println("Adm: På vei ut av findNewOrder. Orders, properties: ", orders, properties)
+	//fmt.Println("Adm: På vei ut av findNewOrder. Orders, properties: ", orders, properties)
 }
