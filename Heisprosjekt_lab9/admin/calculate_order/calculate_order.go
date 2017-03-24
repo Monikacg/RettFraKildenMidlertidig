@@ -177,24 +177,30 @@ func amIClosestToNewOrder(orders [][]int, properties []int, aliveLifts []int, ID
 
 	for (len(floorsWithOutsideOrders) > 0) && (len(aliveIdleLifts) > 0) {
 		// Pops the last element from floorsWithOutsideOrders to the variable newDestination
+		shortestDistance = N_FLOORS + 2
 		newDestination, floorsWithOutsideOrders = floorsWithOutsideOrders[len(floorsWithOutsideOrders)-1], floorsWithOutsideOrders[:len(floorsWithOutsideOrders)-1]
+		var indexOfClosestLift int
 
-		for _, lift := range aliveIdleLifts {
+		for i, lift := range aliveIdleLifts {
 			if abs(GetLastFloor(properties, lift)-newDestination) < shortestDistance {
 				shortestDistance = abs(GetLastFloor(properties, lift) - newDestination)
 				closestLift = lift
+				indexOfClosestLift = i
 			}
 		}
 		fmt.Println("CO: Closestlift: ", closestLift)
 		if closestLift == ID {
 			return newDestination, true
 		}
-		for i, lift := range aliveIdleLifts {
-			if lift == closestLift {
-				aliveIdleLifts = append(aliveIdleLifts[:i], aliveIdleLifts[i+1:]...)
-				break
+		/*
+			for i, lift := range aliveIdleLifts {
+				if lift == closestLift {
+					aliveIdleLifts = append(aliveIdleLifts[:i], aliveIdleLifts[i+1:]...)
+					break
+				}
 			}
-		}
+		*/
+		aliveIdleLifts = append(aliveIdleLifts[:indexOfClosestLift], aliveIdleLifts[indexOfClosestLift+1:]...)
 		fmt.Println("CO: aliveIdleLifts after closestLift is removed: ", aliveIdleLifts)
 	}
 
