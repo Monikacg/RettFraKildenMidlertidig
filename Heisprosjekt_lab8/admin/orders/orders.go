@@ -45,13 +45,16 @@ func AssignOrders(orders [][]int, floor, liftID int) {
 	}
 }
 
-func DeassignOuterOrders(orders [][]int, liftID int) {
+func DeassignOrders(orders [][]int, liftID int) {
 	for floor := 0; floor < N_FLOORS; floor++ {
 		if orders[BUTTON_CALL_UP][floor] == liftID+1 {
 			orders[BUTTON_CALL_UP][floor] = 0
 		}
 		if orders[BUTTON_CALL_DOWN][floor] == liftID+1 {
 			orders[BUTTON_CALL_DOWN][floor] = 0
+		}
+		if orders[BUTTON_COMMAND][floor] == liftID+1 {
+			orders[BUTTON_COMMAND][floor] = 0
 		}
 	}
 }
