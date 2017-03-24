@@ -19,6 +19,7 @@ func Admin(IDInput int, buttonPressedChan <-chan Button, floorSensorTriggeredCha
 	properties := InitializeLiftProperties()
 	ownID := IDInput
 	var aliveLifts []int
+	lastBackUpRecevied := make([]BackUp, MAX_N_LIFTS)
 
 	//var stuckTimer *time.Timer
 	//const stuckTimeout = 10 * time.Second
@@ -324,29 +325,32 @@ initLoop: // Endre til case f := floorSensorTriggeredChan og den med After blir 
 
 		case backupMsg := <-backupRChan:
 			//fmt.Println("Adm: Fått inn melding fra backupRChan, melding: ", backupMsg)
-			switch backupMsg.Info {
-			case "I was isolated":
-				//fmt.Println("Adm: Fått ny backup (I was alone). Backupmelding: ")
-				//fmt.Println(backupMsg)
-				//fmt.Println("Adm: Orders before backupcommands: ", orders)
-				// Legg inn alle INDRE ordre for backupMsg.SenderID
-				OverwriteInnerOrders(orders, ownID, backupMsg.Orders, backupMsg.SenderID)
-				// Ta inn properties for backupMsg.SenderID
-				SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
+			if areBackupsIdentical(backupMsg, lastBackUpRecevied[backupMsg.SenderID]) {
+				lastBackUpRecevied[backupMsg.SenderID] = backupMsg
+				switch backupMsg.Info {
+				case "I was isolated":
+					//fmt.Println("Adm: Fått ny backup (I was alone). Backupmelding: ")
+					//fmt.Println(backupMsg)
+					//fmt.Println("Adm: Orders before backupcommands: ", orders)
+					// Legg inn alle INDRE ordre for backupMsg.SenderID
+					OverwriteInnerOrders(orders, ownID, backupMsg.Orders, backupMsg.SenderID)
+					// Ta inn properties for backupMsg.SenderID
+					SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
 
-				//fmt.Println("Adm: Orders after backupcommands: ", orders)
+					//fmt.Println("Adm: Orders after backupcommands: ", orders)
 
-			case "I was part of a group":
-				//fmt.Println("Adm: Fått ny backup (I was NOT alone). Backup melding: ")
-				//fmt.Println(backupMsg)
-				//fmt.Println("Adm: Orders before backupcommands: ", orders)
-				// Skriv over alt i orders minus egne indre ordre.
-				OverwriteEverythingButInternalOrders(orders, ownID, backupMsg.Orders)
+				case "I was part of a group":
+					//fmt.Println("Adm: Fått ny backup (I was NOT alone). Backup melding: ")
+					//fmt.Println(backupMsg)
+					//fmt.Println("Adm: Orders before backupcommands: ", orders)
+					// Skriv over alt i orders minus egne indre ordre.
+					OverwriteEverythingButInternalOrders(orders, ownID, backupMsg.Orders)
 
-				// Behold egne properties, skriv over resten.
-				SetPropertiesFromBackup(properties, ownID, backupMsg.Properties)
-				//fmt.Println("Adm: Orders after backupcommands: ", orders)
+					// Behold egne properties, skriv over resten.
+					SetPropertiesFromBackup(properties, ownID, backupMsg.Properties)
+					//fmt.Println("Adm: Orders after backupcommands: ", orders)
 
+				}
 			}
 
 		case peerMsg := <-peerChangeChan:
@@ -404,4 +408,26 @@ func findNewOrder(orders [][]int, ownID int, properties []int, aliveLifts []int,
 		adminTChan <- Message{"Entered IDLE state", ownID, destination, NOT_VALID} // ownID, "IDLE", etasje
 	}
 	//fmt.Println("Adm: På vei ut av findNewOrder. Orders, properties: ", orders, properties)
+}
+
+func areBackupsIdentical(backup1 BackUp, backup2 BackUp) bool {
+	if backup1.Info != backup2.Info {
+		return false
+	}
+	if backup1.SenderID != backup2.SenderID {
+		return false
+	}
+	for i := range backup1.Orders {
+		for j := range backup1.Orders[i] {
+			if backup1.Orders[i][j] != backup2.Orders[i][j] {
+				return false
+			}
+		}
+	}
+	for k := range backup1.Properties {
+		if backup1.Properties[k] != backup2.Properties[k] {
+			return false
+		}
+	}
+	return true
 }
