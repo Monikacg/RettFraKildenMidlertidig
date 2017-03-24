@@ -1,0 +1,22 @@
+Kan kanskje slå sammen button_inside_chan og button_outside_chan hvis vi bruker button
+strukt som har både retning og etasje. E1 for eksempel.
+Ikke sikkert det blir enklere, men kanskje bedre likevel...
+
+
+Hvis funk bare har goroutiner, er det nok for å gjennomføre?
+
+
+NB! LIFTS 0-indeksert.
+
+Sjekk om skal stopp hver gang noen
+
+
+
+_test.go filer virker flotte for å finne feil i kode! Også feil i
+løkker osv. Bør (antageligvis) gjøre det på den andre måten også
+for å se hva som blir printet ut etter korrekthet er sjekket.
+
+- Endre alle ID og lift til noe av det samme. Liker ID, men sier kanskje ikke nok.
+lift_ID?
+
+- NOTE TO SELF: Går det bra med både ytre og indre knapper på samme kanal (test på ekte heis)?
