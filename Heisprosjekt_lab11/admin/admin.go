@@ -39,38 +39,39 @@ func Admin(IDInput int, buttonChan <-chan Button, floorSensorChan <-chan int,
 	// Tror det er uavhengig av hvilken state det står i for det her: Vil bare vite om vi står i en etasje.
 
 	//Kan bruke PEERS for å få inn ALLE
+	/*
+	   getAliveLiftsLoop:
+	   	for {
+	   		select {
+	   		case totalPeers := <-peerInitializeChan: // Sett inn under også? for å være trygg?
+	   			aliveLifts = totalPeers.Peers
+	   			break getAliveLiftsLoop
+	   		case <-time.After(2 * time.Second): // To be sure we continue
+	   			break getAliveLiftsLoop
+	   		}
+	   	}
 
-getAliveLiftsLoop:
-	for {
-		select {
-		case totalPeers := <-peerInitializeChan: // Sett inn under også? for å være trygg?
-			aliveLifts = totalPeers.Peers
-			break getAliveLiftsLoop
-		case <-time.After(2 * time.Second): // To be sure we continue
-			break getAliveLiftsLoop
-		}
-	}
+	   	inList := false
+	   	fmt.Println("Adm: aliveLifts etter første loop: ", aliveLifts)
+	   	for _, peer := range aliveLifts {
+	   		if peer == ID {
+	   			inList = true
+	   		}
+	   	}
 
-	inList := false
-	fmt.Println("Adm: aliveLifts etter første loop: ", aliveLifts)
-	for _, peer := range aliveLifts {
-		if peer == ID {
-			inList = true
-		}
-	}
-
-	if !inList {
-		aliveLifts = append(aliveLifts, ID)
-		sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] })
-	}
-	fmt.Println("Adm: aliveLifts etter test om egen id finnes der: ", aliveLifts)
-
+	   	if !inList {
+	   		aliveLifts = append(aliveLifts, ID)
+	   		sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] })
+	   	}
+	   	fmt.Println("Adm: aliveLifts etter test om egen id finnes der: ", aliveLifts)
+	*/
 searchingForBackupLoop:
 	for {
 		select {
 		//case totalPeers := <-peerInitializeChan: // Sett inn under også? for å være trygg?
 		//aliveLifts = totalPeers.Peers
 		//Legg inn en måte å få inn andre som er på nett?
+
 		case backup := <-backupRChan:
 			orders = backup.Orders
 			properties = backup.Properties
@@ -102,47 +103,48 @@ searchingForBackupLoop:
 initLoop:
 	for {
 		select {
+		/*
+			case peerMsg := <-peerChangeChan:
+				switch peerMsg.Change {
+				case "New":
+					fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
+					if len(aliveLifts) == 1 {
+						backupTChan <- BackUp{"IWasAlone", ID, orders, properties}
+					} else {
+						backupTChan <- BackUp{"IWasNotAlone", ID, orders, properties}
+					}
+					aliveLifts = append(aliveLifts, peerMsg.ChangedPeer)
+					sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] }) //Bare problem på mac?
 
-		case peerMsg := <-peerChangeChan:
-			switch peerMsg.Change {
-			case "New":
-				fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
-				if len(aliveLifts) == 1 {
-					backupTChan <- BackUp{"IWasAlone", ID, orders, properties}
-				} else {
-					backupTChan <- BackUp{"IWasNotAlone", ID, orders, properties}
-				}
-				aliveLifts = append(aliveLifts, peerMsg.ChangedPeer)
-				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] }) //Bare problem på mac?
-
-			case "Lost":
-				fmt.Println("Adm: Får inn Lost peer. Det er: ", peerMsg.ChangedPeer)
-				for i, lostPeer := range aliveLifts {
-					if lostPeer == peerMsg.ChangedPeer {
-						aliveLifts = append(aliveLifts[:i], aliveLifts[i+1:]...)
-						DeassignOuterOrders(orders, lostPeer)
-						break
+				case "Lost":
+					fmt.Println("Adm: Får inn Lost peer. Det er: ", peerMsg.ChangedPeer)
+					for i, lostPeer := range aliveLifts {
+						if lostPeer == peerMsg.ChangedPeer {
+							aliveLifts = append(aliveLifts[:i], aliveLifts[i+1:]...)
+							DeassignOuterOrders(orders, lostPeer)
+							break
+						}
 					}
 				}
-			}
 
-		case backupMsg := <-backupRChan:
-			fmt.Println("Adm: Fått inn melding fra backupRChan, melding: ", backupMsg)
-			switch backupMsg.Info {
-			case "IWasAlone":
-				// Legg inn alle INDRE ordre for backupMsg.SenderID
-				CopyInnerOrders(orders, ID, backupMsg.Orders, backupMsg.SenderID)
-				// Ta inn properties for backupMsg.SenderID
-				SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
+			case backupMsg := <-backupRChan:
+				fmt.Println("Adm: Fått inn melding fra backupRChan, melding: ", backupMsg)
+				switch backupMsg.Info {
+				case "IWasAlone":
+					// Legg inn alle INDRE ordre for backupMsg.SenderID
+					CopyInnerOrders(orders, ID, backupMsg.Orders, backupMsg.SenderID)
+					// Ta inn properties for backupMsg.SenderID
+					SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
 
-			case "IWasNotAlone":
-				// Skriv over alt i orders minus egne indre ordre.
-				OverwriteEverythingButInternalOrders(orders, ID, backupMsg.Orders)
+				case "IWasNotAlone":
+					// Skriv over alt i orders minus egne indre ordre.
+					OverwriteEverythingButInternalOrders(orders, ID, backupMsg.Orders)
 
-				// Behold egne properties, skriv over resten.
-				SetPropertiesFromBackup(properties, ID, backupMsg.Properties)
+					// Behold egne properties, skriv over resten.
+					SetPropertiesFromBackup(properties, ID, backupMsg.Properties)
 
-			}
+				}
+		*/
 
 		case f := <-floorSensorChan:
 			fmt.Println("Adm: initLoop, floor Sensor") // NOTE: NEEDS DIRN_DOWN SET FURTHER UP.
@@ -153,7 +155,7 @@ initLoop:
 			adminTChan <- Udp{ID, "Stopped", f, NOT_VALID}
 			break initLoop
 
-		case <-time.After(3 * time.Second):
+		default:
 			SetState(properties, ID, MOVING)
 			localOrderChan <- Order{"DIRN", DIRN_DOWN, NOT_VALID, NOT_VALID}
 			break initLoop
