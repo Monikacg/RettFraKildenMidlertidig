@@ -234,7 +234,7 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for i, lift := range liftsIdleOrWithOpenDoors {
-			if orders[BUTTON_COMMAND+ID][floor] == 0 {
+			if orders[BUTTON_COMMAND+lift][floor] == 0 {
 				if lift == ID {
 					return floor, true
 				}
@@ -272,7 +272,7 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 	fmt.Println("CO: FLoorsthathasn't been taken: ", floorsWithOrdersThatHasntBeenTaken)
 
 	for _, lift := range liftsIdleOrWithOpenDoors {
-		if GetState(properties, ID) == IDLE {
+		if GetState(properties, lift) == IDLE {
 			liftsIdle = append(liftsIdle, lift)
 		}
 	}
