@@ -191,6 +191,7 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 	var floorsWithOutsideOrders []int
 	var floorsWithOrdersThatHasntBeenTaken []int
 	var liftsIdleOrWithOpenDoors []int
+	var liftsIdle []int
 	var aliveAndMoving []int
 
 	for _, lift := range aliveLifts {
@@ -269,10 +270,17 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 	}
 
 	fmt.Println("CO: FLoorsthathasn't been taken: ", floorsWithOrdersThatHasntBeenTaken)
-	// If there are any left now, they will go to the closest lifts.
+
+	for _, lift := range liftsIdleOrWithOpenDoors {
+		if GetState(properties, ID) == IDLE {
+			liftsIdle = append(liftsIdle, lift)
+		}
+	}
+
+	// If there are any left now, they will go to the closest lifts in IDLE state (so no order gets stuck waiting for a lift with an open door.)
 	for _, floor := range floorsWithOrdersThatHasntBeenTaken {
 		closestLift, shortestDistance = NOT_VALID, N_FLOORS+2
-		for j, lift := range liftsIdleOrWithOpenDoors {
+		for j, lift := range liftsIdle {
 			if abs(GetLastFloor(properties, lift)-floor) < shortestDistance {
 				shortestDistance = abs(GetLastFloor(properties, lift) - floor)
 				closestLift = lift
@@ -282,7 +290,7 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 		if closestLift == ID {
 			return floor, true
 		}
-		liftsIdleOrWithOpenDoors = append(liftsIdleOrWithOpenDoors[:closestLiftIndex], liftsIdleOrWithOpenDoors[closestLiftIndex+1:]...)
+		liftsIdle = append(liftsIdle[:closestLiftIndex], liftsIdle[closestLiftIndex+1:]...)
 	}
 
 	return NOT_VALID, false
