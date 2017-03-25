@@ -287,10 +287,10 @@ initLoop:
 					fmt.Println("Adm: Properties inne i samme case: ", properties)
 				case "Stopped":
 					fmt.Println("Adm: Får tilbake fra network, annen heis, Stopped")
-					AssignOrders(orders, m.Floor, m.ID)
-					CompleteOrder(orders, m.Floor, m.ID)
 					SetState(properties, m.ID, DOOR_OPEN)
 					SetLastFloor(properties, m.ID, m.Floor)
+					AssignOrders(orders, m.Floor, m.ID)
+					CompleteOrder(orders, m.Floor, m.ID)
 					localOrderChan <- Order{"LIGHT", BUTTON_CALL_UP, m.Floor, OFF}
 					localOrderChan <- Order{"LIGHT", BUTTON_CALL_DOWN, m.Floor, OFF}
 					fmt.Println("Adm: The ID of the lift that stopped, orders, properties: ", m.ID, orders, properties)
@@ -302,9 +302,9 @@ initLoop:
 
 				case "NewOrder":
 					fmt.Println("Adm: Får tilbake fra network, annen heis, NewOrder")
-					AssignOrders(orders, m.Floor, m.ID)
 					SetState(properties, m.ID, MOVING)
 					SetDirn(properties, m.ID, GetNewDirection(m.Floor, GetLastFloor(properties, m.ID)))
+					AssignOrders(orders, m.Floor, m.ID)
 					fmt.Println("Adm: Orders at floor ", m.Floor, " now belongs to ", m.ID, " . Orders now: ", orders)
 					fmt.Println("Adm: Properties inne i samme case: ", properties)
 
