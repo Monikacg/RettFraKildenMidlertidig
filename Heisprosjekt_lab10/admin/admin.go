@@ -176,20 +176,9 @@ initLoop:
 
 		case b := <-buttonChan:
 
-			adminTChan <- Udp{ID, "ButtonPressed", b.Floor, b.Button_dir}
-			/*if b != lastButtonPressed {
+			if isButtonAlreadyRegistrered(orders, b, ID) {
 				adminTChan <- Udp{ID, "ButtonPressed", b.Floor, b.Button_dir}
-				bi++
-
-				if bi >= 5 {
-					lastButtonPressed = Button{NOT_VALID, NOT_VALID}
-				}
-			}*/
-
-			//Tanke: Legg inn noe som gjør at det ikke legges til(sendes ut på NW) hvis allerede finnes i orders.
-			/*if not in orders {
-				adminTChan <- Udp{ID, "ButtonPressed", b.Floor, b.Button_dir}
-			}*/
+			}
 
 		case fs := <-floorSensorChan:
 			switch GetState(properties, ID) {
@@ -398,4 +387,17 @@ func findNewOrder(orders [][]int, ID int, properties []int, aliveLifts []int, st
 		adminTChan <- Udp{ID, "Idle", dest, NOT_VALID} // ID, "IDLE", etasje
 	}
 	fmt.Println("Adm: På vei ut av findNewOrder. Orders, properties: ", orders, properties)
+}
+
+func isButtonAlreadyRegistrered(orders [][]int, b Button, ID int) bool {
+	if b.Button_dir == BUTTON_COMMAND {
+		if orders[b.Button_dir+ID][b.Floor] == -1 {
+			return false
+		}
+	} else {
+		if orders[b.Button_dir][b.Floor] == -1 {
+			return false
+		}
+	}
+	return true
 }
