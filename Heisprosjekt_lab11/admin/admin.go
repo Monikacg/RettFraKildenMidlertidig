@@ -80,11 +80,7 @@ searchingForBackupLoop:
 			switch peerMsg.Change {
 			case "New": //Må sjekke om peer allerede er i aliveLifts
 				fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
-				if len(aliveLifts)-1 == 1 {
-					backupTChan <- BackUp{"VarAlene", ID, orders, properties}
-				} else {
-					backupTChan <- BackUp{"IkkeAlene", ID, orders, properties}
-				}
+				backupTChan <- BackUp{"IWasAlone", ID, orders, properties}
 				aliveLifts = append(aliveLifts, peerMsg.ChangedPeer)
 				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] }) //Bare problem på mac?
 
@@ -112,9 +108,9 @@ initLoop:
 			case "New":
 				fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
 				if len(aliveLifts) == 1 {
-					backupTChan <- BackUp{"VarAlene", ID, orders, properties}
+					backupTChan <- BackUp{"IWasAlone", ID, orders, properties}
 				} else {
-					backupTChan <- BackUp{"IkkeAlene", ID, orders, properties}
+					backupTChan <- BackUp{"IWasNotAlone", ID, orders, properties}
 				}
 				aliveLifts = append(aliveLifts, peerMsg.ChangedPeer)
 				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] }) //Bare problem på mac?
@@ -334,9 +330,9 @@ initLoop:
 			case "New":
 				fmt.Println("Adm: Får inn New peerID. Det er: ", peerMsg.ChangedPeer)
 				if len(aliveLifts) == 1 {
-					backupTChan <- BackUp{"VarAlene", ID, orders, properties}
+					backupTChan <- BackUp{"IWasAlone", ID, orders, properties}
 				} else {
-					backupTChan <- BackUp{"IkkeAlene", ID, orders, properties}
+					backupTChan <- BackUp{"IWasNotAlone", ID, orders, properties}
 				}
 				aliveLifts = append(aliveLifts, peerMsg.ChangedPeer)
 				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] }) //MÅ FIKSES. NB NB NB
