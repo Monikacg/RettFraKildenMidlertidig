@@ -54,6 +54,48 @@ func checkForValidDestination(orders [][]int, ID int) (int, bool) {
 	return NOT_VALID, false
 }
 
+func orderAtCurrentFloor(orders [][]int, properties []int, aliveLifts []int, ID int) bool {
+	var liftsIdleOrWithOpenDoors []int
+	var liftsAtThisFloor []int
+	floor := GetLastFloor(properties, ID)
+
+	// If there are anyone inside you should let them out no matter what.
+	if orders[BUTTON_COMMAND+ID][floor] == 0 {
+		return true
+	}
+
+	for _, lift := range aliveLifts {
+		if GetState(properties, lift) == IDLE || GetState(properties, lift) == DOOR_OPEN {
+			_, destExists := checkForValidDestination(orders, lift)
+			if !destExists {
+				liftsIdleOrWithOpenDoors = append(liftsIdleOrWithOpenDoors, lift)
+			}
+		}
+	}
+
+	if orders[BUTTON_CALL_UP][floor] == 0 || orders[BUTTON_CALL_DOWN][floor] == 0 {
+		for _, lift := range liftsIdleOrWithOpenDoors {
+			if GetLastFloor(properties, lift) == floor {
+				// Someone inside this lift. This lift takes all the orders.
+				if orders[BUTTON_COMMAND+lift][floor] == 0 {
+					return false
+				}
+				liftsAtThisFloor = append(liftsAtThisFloor, lift)
+			}
+		}
+	} else {
+		return false
+	}
+
+	if len(liftsAtThisFloor) == 1 { // Only you at floor.
+		return true
+	} else if liftsAtThisFloor[0] == ID { // Using lowest ID to determine precedence
+		return true
+	}
+
+	return false
+}
+
 func newDestination(orders [][]int, ID int, properties []int, aliveLifts []int) int {
 	//fmt.Println("CalcO: newDest")
 	var newDest int = NOT_VALID
@@ -65,17 +107,24 @@ func newDestination(orders [][]int, ID int, properties []int, aliveLifts []int) 
 		switch GetDirn(properties, ID) {
 		case DIRN_UP:
 			//fmt.Println("CalcO: newDest/DIRN_UP")
-			if orderCurrentFloorRightDirection(orders, properties, ID) {
+			/*
+				if orderCurrentFloorRightDirection(orders, properties, ID) {
+					return GetLastFloor(properties, ID)
+				}
+			*/
+			if orderAtCurrentFloor(orders, properties, aliveLifts, ID) {
 				return GetLastFloor(properties, ID)
 			}
+
 			newDest, newDestExists = orderAbove(orders, properties, ID)
 			if newDestExists {
 				return newDest
 			}
-
-			if orderCurrentFloorOppositeDirection(orders, properties, ID) {
-				return GetLastFloor(properties, ID)
-			}
+			/*
+				if orderCurrentFloorOppositeDirection(orders, properties, ID) {
+					return GetLastFloor(properties, ID)
+				}
+			*/
 
 			// None over, changing direction
 			newDest, newDestExists = orderBelow(orders, properties, ID)
@@ -84,17 +133,24 @@ func newDestination(orders [][]int, ID int, properties []int, aliveLifts []int) 
 			}
 		case DIRN_DOWN:
 			//fmt.Println("CalcO: newDest/DIRN_DOWN")
-			if orderCurrentFloorRightDirection(orders, properties, ID) {
+			/*
+				if orderCurrentFloorRightDirection(orders, properties, ID) {
+					return GetLastFloor(properties, ID)
+				}
+			*/
+			if orderAtCurrentFloor(orders, properties, aliveLifts, ID) {
 				return GetLastFloor(properties, ID)
 			}
+
 			newDest, newDestExists = orderBelow(orders, properties, ID)
 			if newDestExists {
 				return newDest
 			}
-
-			if orderCurrentFloorOppositeDirection(orders, properties, ID) {
-				return GetLastFloor(properties, ID)
-			}
+			/*
+				if orderCurrentFloorOppositeDirection(orders, properties, ID) {
+					return GetLastFloor(properties, ID)
+				}
+			*/
 			// None over, changing direction
 			newDest, newDestExists = orderAbove(orders, properties, ID)
 			if newDestExists {
@@ -104,10 +160,16 @@ func newDestination(orders [][]int, ID int, properties []int, aliveLifts []int) 
 
 	case IDLE:
 		// NB! Dette kan føre til at flere tar samme. Bør endres?
-		if orderCurrentFloorAny(orders, properties, ID) {
+		/*
+			if orderCurrentFloorAny(orders, properties, ID) {
+				return GetLastFloor(properties, ID)
+			}
+		*/
+		if orderAtCurrentFloor(orders, properties, aliveLifts, ID) {
 			return GetLastFloor(properties, ID)
 		}
-		newDest, iAmClosest = amIClosestToNewOrder(orders, properties, aliveLifts, ID)
+
+		newDest, iAmClosest = newAmIClosest(orders, properties, aliveLifts, ID)
 		//Sjekker hvilke andre (som er i live) som er IDLE,
 		//finner ut hvem som er nærmest. Lavest ID prioritet etter lavest avstand
 		//Hvis en nærmere, tar nest nærmest frem til ingen igjen.
@@ -121,6 +183,89 @@ func newDestination(orders [][]int, ID int, properties []int, aliveLifts []int) 
 	return NOT_VALID
 }
 
+func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (int, bool) {
+	var closestLift, shortestDistance int = NOT_VALID, N_FLOORS + 2
+	var closestLiftIndex int
+	var floorsWithOutsideOrders []int
+	var floorsWithOrdersThatHasntBeenTaken []int
+	var liftsIdleOrWithOpenDoors []int
+	var aliveAndMoving []int
+
+	for _, lift := range aliveLifts {
+		if GetState(properties, lift) == IDLE || GetState(properties, lift) == DOOR_OPEN {
+			_, destExists := checkForValidDestination(orders, lift)
+			if !destExists {
+				liftsIdleOrWithOpenDoors = append(liftsIdleOrWithOpenDoors, lift)
+			}
+		}
+	}
+
+	// Some of these orders might already have been taken in a previous function,
+	// meaning all floors that have a lift in liftsIdleOrWithOpenDoors at that floor means that
+	// someone already has taken the order at that floor.
+	for floor := 0; floor < N_FLOORS; floor++ {
+		floorAdded := false
+		if orders[BUTTON_CALL_UP][floor] == 0 {
+			if !(orders[BUTTON_CALL_DOWN][floor] > 0) { // In case someone else has button down assigned.
+				floorsWithOutsideOrders = append(floorsWithOutsideOrders, floor)
+				floorAdded = true
+			}
+		}
+		if orders[BUTTON_CALL_DOWN][floor] == 0 && !floorAdded {
+			floorsWithOutsideOrders = append(floorsWithOutsideOrders, floor)
+		}
+	}
+
+	for _, floor := range floorsWithOutsideOrders {
+		anyLiftAtThisFloor := false
+		for _, lift := range liftsIdleOrWithOpenDoors {
+			if GetLastFloor(properties, lift) == floor {
+				anyLiftAtThisFloor = true
+			}
+		}
+		if !anyLiftAtThisFloor {
+			floorsWithOrdersThatHasntBeenTaken = append(floorsWithOrdersThatHasntBeenTaken, floor)
+		}
+	}
+
+	// If someone has an assigned order at this floor (would be part of aliveLifts, but not liftsIdleOrWithOpenDoors),
+	// then that lift should take this order, and whoever called this function should stay away.
+
+	for _, lift := range aliveLifts {
+		_, destExists := checkForValidDestination(orders, lift)
+		if !destExists {
+			aliveAndMoving = append(aliveAndMoving, lift)
+		}
+	}
+
+	for i, floor := range floorsWithOrdersThatHasntBeenTaken {
+		for _, lift := range aliveAndMoving {
+			if orders[BUTTON_COMMAND+lift][floor] > 0 {
+				floorsWithOrdersThatHasntBeenTaken = append(floorsWithOrdersThatHasntBeenTaken[:i], floorsWithOrdersThatHasntBeenTaken[i+1:]...)
+				i--
+			}
+		}
+	}
+
+	// If there are any left now, they will go to the closest lifts.
+	for _, floor := range floorsWithOrdersThatHasntBeenTaken {
+		closestLift, shortestDistance = NOT_VALID, N_FLOORS+2
+		for j, lift := range liftsIdleOrWithOpenDoors {
+			if abs(GetLastFloor(properties, lift)-floor) < shortestDistance {
+				shortestDistance = abs(GetLastFloor(properties, lift) - floor)
+				closestLift = lift
+				closestLiftIndex = j
+			}
+		}
+		if closestLift == ID {
+			return floor, true
+		}
+		liftsIdleOrWithOpenDoors = append(liftsIdleOrWithOpenDoors[:closestLiftIndex], liftsIdleOrWithOpenDoors[closestLiftIndex+1:]...)
+	}
+
+	return NOT_VALID, false
+}
+
 /*
 Sjekke ytre knapper for ordre, indre i alle IDLE
 Vil bare vær 1 knapp trykket
@@ -130,6 +275,7 @@ MÅ TESTES GRUNDIG
 
 // Gå igjennom igjen. Ikke alltid bare én order som finnes, kan også være ytre ordre en
 // lost heis har gitt opp som kan tas.
+/*
 func amIClosestToNewOrder(orders [][]int, properties []int, aliveLifts []int, ID int) (int, bool) {
 	//fmt.Println("CalcO: amIClosest")
 	var closestLift, newDest, shortestDistance int = NOT_VALID, NOT_VALID, N_FLOORS + 1
@@ -199,6 +345,7 @@ func amIClosestToNewOrder(orders [][]int, properties []int, aliveLifts []int, ID
 
 	return NOT_VALID, false
 }
+*/
 
 func abs(value int) int {
 	if value < 0 {
@@ -255,6 +402,7 @@ func orderBelow(orders [][]int, properties []int, ID int) (int, bool) {
 	return NOT_VALID, false
 }
 
+/*
 //Endre navn sikkert
 func orderCurrentFloorRightDirection(orders [][]int, properties []int, ID int) bool {
 	//fmt.Println("CalcO: orderCurrentFloorMoving")
@@ -312,6 +460,8 @@ func orderCurrentFloorAny(orders [][]int, properties []int, ID int) bool {
 	}
 	return false
 }
+
+*/
 
 func ShouldStop(orders [][]int, properties []int, floor int, ID int) bool {
 	//fmt.Println("CalcO: Inne i ShouldStop, floor", floor)

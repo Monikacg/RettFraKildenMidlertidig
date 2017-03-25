@@ -70,6 +70,9 @@ func DeassignOuterOrders(orders [][]int, lift int) { // Hvis mister nett -> noen
 		if orders[BUTTON_CALL_DOWN][floor] == lift+1 {
 			orders[BUTTON_CALL_DOWN][floor] = 0
 		}
+		if orders[BUTTON_COMMAND+lift][floor] == lift+1 {
+			orders[BUTTON_COMMAND+lift][floor] = 0
+		}
 	}
 }
 
