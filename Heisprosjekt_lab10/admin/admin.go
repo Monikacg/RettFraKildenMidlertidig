@@ -40,8 +40,6 @@ func Admin(IDInput int, buttonChan <-chan Button, floorSensorChan <-chan int,
 
 	//Kan bruke PEERS for å få inn ALLE
 
-	SetDirn(properties, ID, DIRN_DOWN)
-
 getAliveLiftsLoop:
 	for {
 		select {
@@ -176,7 +174,7 @@ initLoop:
 
 		case b := <-buttonChan:
 
-			if isButtonAlreadyRegistrered(orders, b, ID) {
+			if !isButtonAlreadyRegistrered(orders, b, ID) {
 				adminTChan <- Udp{ID, "ButtonPressed", b.Floor, b.Button_dir}
 			}
 
