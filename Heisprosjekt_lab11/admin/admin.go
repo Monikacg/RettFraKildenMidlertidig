@@ -343,9 +343,8 @@ initLoop:
 
 			case "Lost":
 				fmt.Println("Adm: Får inn Lost peer. Det er: ", peerMsg.ChangedPeer)
-				for i, n := range aliveLifts {
-					if n == peerMsg.ChangedPeer {
-						lostPeer := n
+				for i, lostPeer := range aliveLifts {
+					if lostPeer == peerMsg.ChangedPeer {
 						aliveLifts = append(aliveLifts[:i], aliveLifts[i+1:]...)
 						DeassignOuterOrders(orders, lostPeer)
 						if GetState(properties, ID) == IDLE {
