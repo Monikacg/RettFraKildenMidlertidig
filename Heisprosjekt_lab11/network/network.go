@@ -354,13 +354,14 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 				}
 
 				lostDelCount := 0
-				for i, previouslyAliveID := range currentPeers {
-					for _, lostID := range lostSlice {
+				for i, lostID := range lostSlice {
+					for j, previouslyAliveID := range currentPeers {
 						if lostID == previouslyAliveID { //Assumes you never get your own ID here, but haven't tested...
-							currentPeers = append(currentPeers[:i], currentPeers[i+1:]...) // endre, bør tas bort på annen måte?
+							currentPeers = append(currentPeers[:j], currentPeers[j+1:]...) // endre, bør tas bort på annen måte?
 							peerChangeChan <- Peer{"Lost", lostID}
 							i--
 							lostDelCount++
+							break
 						}
 					}
 					if len(currentPeers) == i+lostDelCount-1 {
