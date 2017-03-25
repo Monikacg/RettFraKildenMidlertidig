@@ -232,6 +232,8 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 		}
 	}
 
+	// Slices in go requires some way to keep track of the index you are deleting if you are deleting pieces of the one you are iterating over.
+	liftDelCount := 0
 	for floor := 0; floor < N_FLOORS; floor++ {
 		for i, lift := range liftsIdleOrWithOpenDoors {
 			if orders[BUTTON_COMMAND+lift][floor] == 0 {
@@ -241,11 +243,16 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 				for j, f := range floorsWithOrdersThatHasntBeenTaken {
 					if f == floor {
 						floorsWithOrdersThatHasntBeenTaken = append(floorsWithOrdersThatHasntBeenTaken[:j], floorsWithOrdersThatHasntBeenTaken[j+1:]...)
-						j--
+						break
 					}
 				}
 				liftsIdleOrWithOpenDoors = append(liftsIdleOrWithOpenDoors[:i], liftsIdleOrWithOpenDoors[i+1:]...)
 				i--
+				liftDelCount++
+
+				if len(liftsIdleOrWithOpenDoors) == i+liftDelCount-1 {
+					break
+				}
 			}
 		}
 	}
@@ -260,12 +267,16 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 		}
 	}
 
+	floorDelCount := 0
 	for i, floor := range floorsWithOrdersThatHasntBeenTaken {
 		for _, lift := range aliveAndMoving {
 			if orders[BUTTON_COMMAND+lift][floor] > 0 {
 				floorsWithOrdersThatHasntBeenTaken = append(floorsWithOrdersThatHasntBeenTaken[:i], floorsWithOrdersThatHasntBeenTaken[i+1:]...)
 				i--
 			}
+		}
+		if len(floorsWithOrdersThatHasntBeenTaken) == i+floorDelCount-1 {
+			break
 		}
 	}
 
