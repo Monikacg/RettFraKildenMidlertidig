@@ -82,7 +82,7 @@ searchingForBackupLoop:
 			switch peerMsg.Change {
 			case "New": //Må sjekke om peer allerede er i aliveLifts
 				fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
-				if len(aliveLifts) - 1 == 1 {
+				if len(aliveLifts)-1 == 1 {
 					backupTChan <- BackUp{"VarAlene", ID, orders, properties}
 				} else {
 					backupTChan <- BackUp{"IkkeAlene", ID, orders, properties}
@@ -248,7 +248,7 @@ initLoop:
 				case "Stopped":
 					SetLastFloor(properties, ID, m.Floor)
 					SetState(properties, ID, DOOR_OPEN)
-					AssignOrders(orders, m.Floor, ID)
+					AssignOrders(orders, m.Floor, ID) // også nederst nå.
 					CompleteOrder(orders, m.Floor, ID)
 					fmt.Println("Adm: Orders at ", m.Floor, " when I get stopped back: ", orders)
 					fmt.Println("Adm: Fått Stopped tilbake. Properties: ", properties)
@@ -259,10 +259,10 @@ initLoop:
 					fmt.Println("Adm: DrovePast kommer rundt, setter lastFloor/state=MOVING. Properties: ", properties)
 				case "NewOrder":
 					// Gjør alt før, er bare ack her. Skal det i det hele tatt komme tilbake hit?
-					localOrderChan <- Order{"DIRN", GetNewDirection(m.Floor, GetLastFloor(properties, ID)), NOT_VALID, NOT_VALID}
-					AssignOrders(orders, m.Floor, ID)
 					SetState(properties, ID, MOVING)
 					SetDirn(properties, ID, GetNewDirection(m.Floor, GetLastFloor(properties, ID)))
+					localOrderChan <- Order{"DIRN", GetNewDirection(m.Floor, GetLastFloor(properties, ID)), NOT_VALID, NOT_VALID}
+					// AssignOrders(orders, m.Floor, ID) MOVED
 					fmt.Println("Adm: Orders at floor ", m.Floor, " now belongs to me. Orders now: ", orders)
 					fmt.Println("Adm: NewOrder kommer rundt. Properties: ", properties)
 				case "Idle":
@@ -289,10 +289,10 @@ initLoop:
 					fmt.Println("Adm: Får tilbake fra network, annen heis, Stopped")
 					AssignOrders(orders, m.Floor, m.ID)
 					CompleteOrder(orders, m.Floor, m.ID)
-					localOrderChan <- Order{"LIGHT", BUTTON_CALL_UP, m.Floor, OFF}
-					localOrderChan <- Order{"LIGHT", BUTTON_CALL_DOWN, m.Floor, OFF}
 					SetState(properties, m.ID, DOOR_OPEN)
 					SetLastFloor(properties, m.ID, m.Floor)
+					localOrderChan <- Order{"LIGHT", BUTTON_CALL_UP, m.Floor, OFF}
+					localOrderChan <- Order{"LIGHT", BUTTON_CALL_DOWN, m.Floor, OFF}
 					fmt.Println("Adm: The ID of the lift that stopped, orders, properties: ", m.ID, orders, properties)
 				case "DrovePast":
 					fmt.Println("Adm: Får tilbake fra network, annen heis, DrovePast")
@@ -305,7 +305,7 @@ initLoop:
 					AssignOrders(orders, m.Floor, m.ID)
 					SetState(properties, m.ID, MOVING)
 					SetDirn(properties, m.ID, GetNewDirection(m.Floor, GetLastFloor(properties, m.ID)))
-					fmt.Println("Adm: Orders at floor ", m.Floor, " now belongs to ", m.ID ," . Orders now: ", orders)
+					fmt.Println("Adm: Orders at floor ", m.Floor, " now belongs to ", m.ID, " . Orders now: ", orders)
 					fmt.Println("Adm: Properties inne i samme case: ", properties)
 
 				case "Idle":
@@ -370,7 +370,6 @@ initLoop:
 				}
 			}
 
-
 		}
 	}
 }
@@ -385,12 +384,14 @@ func findNewOrder(orders [][]int, ID int, properties []int, aliveLifts []int, st
 	fmt.Println("Adm: Got new direction", newDirn, dest)
 	if newDirn == DIRN_STOP {
 		fmt.Println("Adm: I DIRN_STOP for findNewOrder")
+		AssignOrders(orders, dest, ID)
 		localOrderChan <- Order{"FLOOR_LIGHT", NOT_VALID, GetLastFloor(properties, ID), ON}
 		localOrderChan <- Order{"DIRN", DIRN_STOP, NOT_VALID, ON}
 		startTimerChan <- "DOOR_OPEN"
 		adminTChan <- Udp{ID, "Stopped", GetLastFloor(properties, ID), NOT_VALID}
 	} else if newDirn == DIRN_DOWN || newDirn == DIRN_UP {
 		fmt.Println("Adm: I DIRN_DOWN/DIRN_UP for findNewOrder")
+		AssignOrders(orders, dest, ID)
 		adminTChan <- Udp{ID, "NewOrder", dest, NOT_VALID} // ID, "Moving, desting (new order)", etasje
 	} else { // newDirn == -2 (NOT_VALID)
 		fmt.Println("Adm: I IDLE for findNewOrder")
