@@ -292,7 +292,7 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 			}
 
 		case newMessageToSend := <-adminTChan:
-			if len(currentPeers) == 1 {
+			if len(currentPeers) <= 1 {
 
 				outsideDownPressed := (newMessageToSend.Type == "ButtonPressed") && (newMessageToSend.ExtraInfo == BUTTON_CALL_DOWN)
 				outsideUpPressed := (newMessageToSend.Type == "ButtonPressed") && (newMessageToSend.ExtraInfo == BUTTON_CALL_UP)
@@ -330,16 +330,16 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 				fmt.Println("NW: Mottatt New: ", p.New)
 				fmt.Println("NW: currentPeers når mottatt: ", currentPeers)
 				newID, _ := strconv.Atoi(p.New)
-				if newID != ownID { // Må endres! vil tydeligvis ha egen id sent til admin i hvert fall.
-					currentPeers = append(currentPeers, newID)
-					sort.Slice(currentPeers, func(i, j int) bool { return currentPeers[i] < currentPeers[j] })
-					peerChangeChan <- Peer{"New", newID}
+				//if newID != ownID { // Må endres! vil tydeligvis ha egen id sent til admin i hvert fall.
+				currentPeers = append(currentPeers, newID)
+				sort.Slice(currentPeers, func(i, j int) bool { return currentPeers[i] < currentPeers[j] })
+				peerChangeChan <- Peer{"New", newID}
 
-					//Needs new name
-					var currPeersToAck CurrPeers
-					currPeersToAck.Peers = currentPeers
-					ackCurrentPeersChan <- currPeersToAck
-				}
+				//Needs new name
+				var currPeersToAck CurrPeers
+				currPeersToAck.Peers = currentPeers
+				ackCurrentPeersChan <- currPeersToAck
+				//}
 				fmt.Println("NW: currentPeers etter mottatt: ", currentPeers)
 
 			}
