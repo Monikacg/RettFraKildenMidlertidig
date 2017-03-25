@@ -65,7 +65,7 @@ type OverNetwork struct {
 }
 
 type Ack struct {
-	SequenceStart  int
+	//SequenceStart  int
 	SequenceNumber int
 	Message        Udp
 	Ackers         []int

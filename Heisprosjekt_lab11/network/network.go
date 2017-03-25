@@ -73,7 +73,7 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 			//fmt.Println("NW::senAcks: Message to send out: ", msgToSend)
 			var newAck Ack
 			newAck.Message = msgToSend
-			newAck.SequenceStart = ownSeqStart
+			//newAck.SequenceStart = ownSeqStart
 			newAck.SequenceNumber = seqs[ownID]
 			//newAck.Counter = numberOfTimeouts
 
@@ -93,44 +93,50 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 
 			if recvMsg.ThisIsAnAck {
 				// Checks that it is from someone else and that it is originally sent out by this lift.
-				if recvMsg.AckersID != ownID {
-					var indicesOfMessagesToRemove []int
-					if recvMsg.Message.ID == ownID {
+				//if recvMsg.AckersID != ownID {
+				//var indicesOfMessagesToRemove []int
+				if recvMsg.Message.ID == ownID {
 
-						for i, ack := range msgAcks {
-							if ack.Message == recvMsg.Message {
-								alreadyAcked := false
-								for _, acker := range ack.Ackers {
-									if acker == recvMsg.AckersID {
-										alreadyAcked = true
-									}
-								}
-								if !alreadyAcked {
-									msgAcks[i].Ackers = append(msgAcks[i].Ackers, recvMsg.AckersID)
-								}
-								if len(peers) > 1 {
-									if len(msgAcks[i].Ackers) >= len(peers)-1 {
-										adminRChan <- ack.Message
-										indicesOfMessagesToRemove = append(indicesOfMessagesToRemove, i)
-									} else {
-										break // Assures that messages return in correct order
-									} /*else if msgAcks[i].Counter <= 0 { // erstatt med or?
-										adminRChan <- ack.Message
-										//msgAcks = append(msgAcks[:i], msgAcks[i+1:]...) Kan ikke stå her siden det endrer på for-løkka.
-										indicesOfMessagesToRemove = append(indicesOfMessagesToRemove, i)
-									}*/
+					for i, ack := range msgAcks {
+						if ack.Message == recvMsg.Message {
+							alreadyAcked := false
+							for _, acker := range ack.Ackers {
+								if acker == recvMsg.AckersID {
+									alreadyAcked = true
 								}
 							}
+							if !alreadyAcked {
+								msgAcks[i].Ackers = append(msgAcks[i].Ackers, recvMsg.AckersID)
+							}
+
+							/*else if msgAcks[i].Counter <= 0 { // erstatt med or?
+								adminRChan <- ack.Message
+								//msgAcks = append(msgAcks[:i], msgAcks[i+1:]...) Kan ikke stå her siden det endrer på for-løkka.
+								indicesOfMessagesToRemove = append(indicesOfMessagesToRemove, i)
+							}*/
 						}
 					}
-					//fmt.Println("NW: msgAcks in messages to delete: ", msgAcks)
-					//fmt.Println("NW: indicesOfMessagesToRemove: ", indicesOfMessagesToRemove)
-					for k, i := range indicesOfMessagesToRemove {
-						msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
-						ownSeqStart++
+					for len(msgAcks) > 0 {
+						if len(msgAcks[0].Ackers) >= len(peers)-1 {
+							adminRChan <- msgAcks[0].Message
+							msgAcks = append(msgAcks[:0], msgAcks[1:]...)
+							ownSeqStart++
+							//indicesOfMessagesToRemove = append(indicesOfMessagesToRemove, i)
+						} else {
+							break // Assures that messages return in correct order
+						}
 					}
 
 				}
+				//fmt.Println("NW: msgAcks in messages to delete: ", msgAcks)
+				//fmt.Println("NW: indicesOfMessagesToRemove: ", indicesOfMessagesToRemove)
+				/*
+					for k, i := range indicesOfMessagesToRemove {
+						msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
+						ownSeqStart++
+					}*/
+
+				//}
 
 			} else {
 				if recvMsg.Message.ID != ownID {
@@ -177,13 +183,14 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 
 		case <-resendTimer.C:
 			//fmt.Println("NW::senAcks: Got timeout (msgacks). MsgAcks at timeout: ", msgAcks)
-			var indicesOfMessagesToRemove []int
+			//var indicesOfMessagesToRemove []int
 			if len(peers) > 1 {
-				for i, ack := range msgAcks {
-					//msgAcks[i].Counter--
-					if len(ack.Ackers) >= len(peers)-1 {
-						adminRChan <- ack.Message
-						indicesOfMessagesToRemove = append(indicesOfMessagesToRemove, i)
+				for len(msgAcks) > 0 {
+					if len(msgAcks[0].Ackers) >= len(peers)-1 {
+						adminRChan <- msgAcks[0].Message
+						msgAcks = append(msgAcks[:0], msgAcks[1:]...)
+						ownSeqStart++
+						//indicesOfMessagesToRemove = append(indicesOfMessagesToRemove, i)
 					} else {
 						break // Assures that messages return in correct order
 					}
@@ -194,11 +201,11 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 					indicesOfMessagesToRemove = append(indicesOfMessagesToRemove, i)
 					fmt.Println("NW::senAcks: Kaster ut en ack, denne: ", msgAcks[i])
 				}*/
-
-				for k, i := range indicesOfMessagesToRemove {
-					msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
-					ownSeqStart++
-				}
+				/*
+					for k, i := range indicesOfMessagesToRemove {
+						msgAcks = append(msgAcks[:i-k], msgAcks[i-k+1:]...)
+						ownSeqStart++
+					}*/
 
 				// Resend all not acked.
 				for _, ack := range msgAcks {
