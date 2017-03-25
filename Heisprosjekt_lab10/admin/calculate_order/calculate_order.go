@@ -3,6 +3,8 @@ package calculate_order
 import (
 	//"fmt"
 
+	"fmt"
+
 	. "../../definitions"
 	. "../lift_properties"
 )
@@ -228,6 +230,22 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 		}
 	}
 
+	for floor := 0; floor < N_FLOORS; floor++ {
+		for _, lift := range liftsIdleOrWithOpenDoors {
+			if orders[BUTTON_COMMAND][floor] == 0 {
+				if lift == ID {
+					return floor, true
+				}
+				for j, f := range floorsWithOrdersThatHasntBeenTaken {
+					if f == floor {
+						floorsWithOrdersThatHasntBeenTaken = append(floorsWithOrdersThatHasntBeenTaken[:j], floorsWithOrdersThatHasntBeenTaken[j+1:]...)
+						j--
+					}
+				}
+			}
+		}
+	}
+
 	// If someone has an assigned order at this floor (would be part of aliveLifts, but not liftsIdleOrWithOpenDoors),
 	// then that lift should take this order, and whoever called this function should stay away.
 
@@ -246,7 +264,7 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 			}
 		}
 	}
-
+	fmt.Println("CO: FLoorsthathasn't been taken: ", floorsWithOrdersThatHasntBeenTaken)
 	// If there are any left now, they will go to the closest lifts.
 	for _, floor := range floorsWithOrdersThatHasntBeenTaken {
 		closestLift, shortestDistance = NOT_VALID, N_FLOORS+2
