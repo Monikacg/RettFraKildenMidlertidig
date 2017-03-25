@@ -243,7 +243,6 @@ func Network(IDInput int, adminTChan <-chan Udp, adminRChan chan<- Udp, backupTC
 	init := true
 
 	var currentPeers []int
-	currentPeers = append(currentPeers, ownID)
 
 	ackCurrentPeersChan := make(chan CurrPeers, 100)
 	adminToAckChan := make(chan Udp, 100)
