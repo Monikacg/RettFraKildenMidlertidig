@@ -218,6 +218,7 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 		}
 	}
 
+	// Floors where there are lifts are removed since we know the outer orders there are taken care of.
 	for _, floor := range floorsWithOutsideOrders {
 		anyLiftAtThisFloor := false
 		for _, lift := range liftsIdleOrWithOpenDoors {
@@ -231,8 +232,8 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 	}
 
 	for floor := 0; floor < N_FLOORS; floor++ {
-		for _, lift := range liftsIdleOrWithOpenDoors {
-			if orders[BUTTON_COMMAND][floor] == 0 {
+		for i, lift := range liftsIdleOrWithOpenDoors {
+			if orders[BUTTON_COMMAND+ID][floor] == 0 {
 				if lift == ID {
 					return floor, true
 				}
@@ -242,6 +243,8 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 						j--
 					}
 				}
+				liftsIdleOrWithOpenDoors = append(liftsIdleOrWithOpenDoors[:i], liftsIdleOrWithOpenDoors[i+1:]...)
+				i--
 			}
 		}
 	}
@@ -264,6 +267,7 @@ func newAmIClosest(orders [][]int, properties []int, aliveLifts []int, ID int) (
 			}
 		}
 	}
+
 	fmt.Println("CO: FLoorsthathasn't been taken: ", floorsWithOrdersThatHasntBeenTaken)
 	// If there are any left now, they will go to the closest lifts.
 	for _, floor := range floorsWithOrdersThatHasntBeenTaken {
