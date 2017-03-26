@@ -34,6 +34,7 @@ func main() {
 	startTimerChan := make(chan string)
 	timeOutChan := make(chan string)
 
+	// NB NB NB!!!! HUSK Å SETT INN "SKRIV INN ID HER".
 	var id string
 	flag.StringVar(&id, "id", "", "id of this peer")
 	flag.Parse()
