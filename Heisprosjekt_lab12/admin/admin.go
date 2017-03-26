@@ -240,6 +240,10 @@ initLoop:
 				case "I'm stuck":
 					DeassignOuterOrders(orders, m.ID)
 					SetState(properties, m.ID, STUCK)
+					if GetState(properties, ID) == IDLE {
+						fmt.Println("Adm: State == IDLE når en annen er STUCK ")
+						findNewOrder(orders, ID, properties, aliveLifts, startTimerChan, localOrderChan, adminTChan)
+					}
 
 				case "Idle":
 					fmt.Println("Adm: Får tilbake fra network, annen heis, Idle")
