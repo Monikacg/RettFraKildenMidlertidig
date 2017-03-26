@@ -21,7 +21,7 @@ func messageSender(helloTx chan<- OverNetwork, messageSenderChan <-chan OverNetw
 		case msg := <-messageSenderChan:
 			//fmt.Println("NW::messageSender: Sending this: ", msg)
 			helloTx <- msg
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }
@@ -32,7 +32,7 @@ func backupSender(backupTx chan<- BackUp, backupSenderChan <-chan BackUp) {
 		case backup := <-backupSenderChan:
 			//fmt.Println("NW::backupSender: Sending this: ", bu)
 			backupTx <- backup
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }
