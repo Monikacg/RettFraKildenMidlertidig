@@ -55,7 +55,7 @@ type Message struct {
 	ButtonType int
 }
 
-type OverNetwork struct {
+type Broadcast struct {
 	ThisIsAnAck    bool
 	AckersID       int
 	SequenceStart  int
@@ -69,13 +69,13 @@ type Ack struct {
 	Ackers []int
 }
 
-type Peer struct {
-	Change      string
-	ChangedPeer int
+type ChangedLift struct {
+	TypeOfChange      string
+	IDofChangedLift int
 }
 
-type CurrPeers struct {
-	Peers []int
+type Lifts struct {
+	AliveLifts []int
 }
 
 type BackUp struct {

@@ -15,7 +15,7 @@ import (
 // All functions used by this file (found in the peers, localip, conn and bcast folders)
 // were made by github.com/klasbo.
 
-func messageSender(messageTransmitChan chan<- OverNetwork, messageSenderChan <-chan OverNetwork) {
+func messageSender(messageTransmitChan chan<- Broadcast, messageSenderChan <-chan Broadcast) {
 	for {
 		select {
 		case msg := <-messageSenderChan:
@@ -37,10 +37,10 @@ func backupSender(backupTransmitChan chan<- BackUp, backupSenderChan <-chan Back
 	}
 }
 
-func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, adminToAckChan <-chan Message, messageReceiveChan <-chan OverNetwork,
-	incomingMessageChan chan<- Message, messageSenderChan chan<- OverNetwork) {
+func checksIncomingMessages(IDInput int, sendAliveLiftListToCheckIncomingMessagesChan <-chan Lifts, messagesToSendChan <-chan Message, messageReceiveChan <-chan Broadcast,
+	incomingMessageChan chan<- Message, messageSenderChan chan<- Broadcast) {
 	ownID := IDInput
-	var peers []int
+	var aliveLifts []int
 	const timeout = 3000 * time.Millisecond
 
 	var msgAcks []Ack
@@ -52,23 +52,23 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 
 	for {
 		select {
-		case cP := <-ackCurrentPeersChan:
-			peers = cP.Peers
+		case al := <-sendAliveLiftListToCheckIncomingMessagesChan:
+			aliveLifts = al.AliveLifts
 			for i, ack := range msgAcks {
-				var temp []int //Usikker på om temp bør hete noe annet.
-				for _, peer := range peers {
+				var aliveAckers []int
+				for _, lift := range aliveLifts {
 					for _, acker := range ack.Ackers {
-						if peer == acker {
-							temp = append(temp, acker)
+						if lift == acker {
+							aliveAckers = append(aliveAckers, acker)
 						}
 					}
 				}
-				msgAcks[i].Ackers = temp
+				msgAcks[i].Ackers = aliveAckers
 			}
 
-			fmt.Println("NW::senAcks: Mottatt currentPeers, ny peers: ", peers)
+			fmt.Println("NW::senAcks: Mottatt aliveLifts, ny peers: ", aliveLifts)
 
-		case msgToSend := <-adminToAckChan:
+		case msgToSend := <-messagesToSendChan:
 			//fmt.Println("NW::senAcks: Message to send out: ", msgToSend)
 			var newAck Ack
 			newAck.Message = msgToSend
@@ -78,7 +78,7 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 			//fmt.Println("NW::senAcks: msgAcks etter msgToSend er lagt til: ", msgAcks)
 
 			// Send message
-			var newMessage OverNetwork
+			var newMessage Broadcast
 			newMessage.Message = msgToSend
 			newMessage.SequenceStart = ownSeqStart
 			newMessage.SequenceNumber = seqs[ownID]
@@ -104,7 +104,7 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 						}
 					}
 					for len(msgAcks) > 0 {
-						if len(msgAcks[0].Ackers) >= len(peers)-1 {
+						if len(msgAcks[0].Ackers) >= len(aliveLifts)-1 {
 							incomingMessageChan <- msgAcks[0].Message
 							msgAcks = append(msgAcks[:0], msgAcks[1:]...)
 							ownSeqStart++
@@ -147,9 +147,9 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 
 		case <-resendTimer.C:
 			//fmt.Println("NW::senAcks: Got timeout (msgacks). MsgAcks at timeout: ", msgAcks)
-			if len(peers) > 1 {
+			if len(aliveLifts) > 1 {
 				for len(msgAcks) > 0 {
-					if len(msgAcks[0].Ackers) >= len(peers)-1 {
+					if len(msgAcks[0].Ackers) >= len(aliveLifts)-1 {
 						incomingMessageChan <- msgAcks[0].Message
 						msgAcks = append(msgAcks[:0], msgAcks[1:]...)
 						ownSeqStart++
@@ -160,7 +160,7 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 
 				// Resend all not acked.
 				for _, ack := range msgAcks {
-					var newMessage OverNetwork
+					var newMessage Broadcast
 					newMessage.Message = ack.Message
 					newMessage.SequenceStart = ownSeqStart
 					newMessage.SequenceNumber = ack.SequenceNumber
@@ -185,16 +185,16 @@ func checksIncomingMessages(IDInput int, ackCurrentPeersChan <-chan CurrPeers, a
 
 // Network starts the network module.
 func Network(IDInput int, outgoingMessageChan <-chan Message, incomingMessageChan chan<- Message, outgoingBackupChan <-chan BackUp,
-	incomingBackupChan chan<- BackUp, peerChangeChan chan<- Peer) {
+	incomingBackupChan chan<- BackUp, aliveLiftChangeChan chan<- ChangedLift) {
 
 	ownID := IDInput
 
-	var currentPeers []int
+	var aliveLifts []int
 	const timeout = 200 * time.Millisecond
 
 
-	ackCurrentPeersChan := make(chan CurrPeers, 100)
-	adminToAckChan := make(chan Message, 100)
+	sendAliveLiftListToCheckIncomingMessagesChan := make(chan Lifts, 100)
+	messagesToSendChan := make(chan Message, 100)
 
 
 
@@ -205,8 +205,8 @@ func Network(IDInput int, outgoingMessageChan <-chan Message, incomingMessageCha
 	go peers.Receiver(15640, peerUpdateCh)
 
 
-	messageTransmitChan := make(chan OverNetwork)
-	messageReceiveChan := make(chan OverNetwork, 100)
+	messageTransmitChan := make(chan Broadcast)
+	messageReceiveChan := make(chan Broadcast, 100)
 	go bcast.Transmitter(16570, messageTransmitChan)
 	go bcast.Receiver(16570, messageReceiveChan)
 
@@ -217,14 +217,14 @@ func Network(IDInput int, outgoingMessageChan <-chan Message, incomingMessageCha
 	go bcast.Receiver(16571, backupReceiveChan)
 
 
-	messageSenderChan := make(chan OverNetwork, 100)
+	messageSenderChan := make(chan Broadcast, 100)
 	backupSenderChan := make(chan BackUp, 100)
 	go messageSender(messageTransmitChan, messageSenderChan)
 	go backupSender(backupTransmitChan, backupSenderChan)
 
 
 
-	go checksIncomingMessages(IDInput, ackCurrentPeersChan, adminToAckChan, messageReceiveChan,
+	go checksIncomingMessages(IDInput, sendAliveLiftListToCheckIncomingMessagesChan, messagesToSendChan, messageReceiveChan,
 		incomingMessageChan, messageSenderChan)
 
 
@@ -247,7 +247,7 @@ func Network(IDInput int, outgoingMessageChan <-chan Message, incomingMessageCha
 			}
 
 		case newMessageToSend := <-outgoingMessageChan:
-			if len(currentPeers) <= 1 {
+			if len(aliveLifts) <= 1 {
 
 				outsideDownPressed := (newMessageToSend.Info == "ButtonPressed") && (newMessageToSend.ButtonType == BUTTON_CALL_DOWN)
 				outsideUpPressed := (newMessageToSend.Info == "ButtonPressed") && (newMessageToSend.ButtonType == BUTTON_CALL_UP)
@@ -258,7 +258,7 @@ func Network(IDInput int, outgoingMessageChan <-chan Message, incomingMessageCha
 				//fmt.Println("NW: (single): Melding", u)
 			} else {
 
-				adminToAckChan <- newMessageToSend
+				messagesToSendChan <- newMessageToSend
 				//fmt.Println("NW: (not alone): Melding", u)
 			}
 
@@ -271,25 +271,24 @@ func Network(IDInput int, outgoingMessageChan <-chan Message, incomingMessageCha
 
 			if len(p.New) > 0 {
 				fmt.Println("NW: Mottatt New: ", p.New)
-				fmt.Println("NW: currentPeers når mottatt: ", currentPeers)
+				fmt.Println("NW: aliveLifts når mottatt: ", aliveLifts)
 				newID, _ := strconv.Atoi(p.New)
-				currentPeers = append(currentPeers, newID)
-				sort.Slice(currentPeers, func(i, j int) bool { return currentPeers[i] < currentPeers[j] })
-				peerChangeChan <- Peer{"New", newID}
+				aliveLifts = append(aliveLifts, newID)
+				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] })
+				aliveLiftChangeChan <- ChangedLift{"New", newID}
 
-				//Needs new name
-				var currPeersToAck CurrPeers
-				currPeersToAck.Peers = currentPeers
-				ackCurrentPeersChan <- currPeersToAck
-				//}
-				fmt.Println("NW: currentPeers etter mottatt: ", currentPeers)
+
+				var currentlyAliveLifts Lifts
+				currentlyAliveLifts.AliveLifts = aliveLifts
+				sendAliveLiftListToCheckIncomingMessagesChan <- currentlyAliveLifts
+				fmt.Println("NW: aliveLifts etter mottatt: ", aliveLifts)
 
 			}
 
 			if len(p.Lost) > 0 {
 				var lostSlice []int
 				fmt.Println("NW: Mottatt Lost: ", p.Lost)
-				fmt.Println("NW: currentPeers når mottatt Lost: ", currentPeers)
+				fmt.Println("NW: aliveLifts når mottatt Lost: ", aliveLifts)
 				for i := range p.Lost {
 					lostIDInt, _ := strconv.Atoi(p.Lost[i])
 					lostSlice = append(lostSlice, lostIDInt)
@@ -297,26 +296,25 @@ func Network(IDInput int, outgoingMessageChan <-chan Message, incomingMessageCha
 
 				lostDelCount := 0
 				for i, lostID := range lostSlice {
-					for j, previouslyAliveID := range currentPeers {
+					for j, previouslyAliveID := range aliveLifts {
 						if lostID == previouslyAliveID {
-							currentPeers = append(currentPeers[:j], currentPeers[j+1:]...)
-							peerChangeChan <- Peer{"Lost", lostID}
+							aliveLifts = append(aliveLifts[:j], aliveLifts[j+1:]...)
+							aliveLiftChangeChan <- ChangedLift{"Lost", lostID}
 							i--
 							lostDelCount++
 							break
 						}
 					}
-					if len(currentPeers) == i+lostDelCount-1 {
+					if len(aliveLifts) == i+lostDelCount-1 {
 						break
 					}
 
 				}
 
-				//Needs some new name
-				var currPeersToAck CurrPeers
-				currPeersToAck.Peers = currentPeers
-				ackCurrentPeersChan <- currPeersToAck
-				fmt.Println("NW: currentPeers etter lost er tatt ut: ", currentPeers)
+				var currentlyAliveLifts Lifts
+				currentlyAliveLifts.AliveLifts = aliveLifts
+				sendAliveLiftListToCheckIncomingMessagesChan <- currentlyAliveLifts
+				fmt.Println("NW: aliveLifts etter lost er tatt ut: ", aliveLifts)
 			}
 
 		}

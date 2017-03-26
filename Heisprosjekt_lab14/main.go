@@ -29,7 +29,7 @@ func main() {
 	incomingBackupChan := make(chan BackUp, 100)
 	outgoingBackupChan := make(chan BackUp, 100)
 
-	peerChangeChan := make(chan Peer, 100)
+	aliveLiftChangeChan := make(chan ChangedLift, 100)
 
 	startTimerChan := make(chan string)
 	timeOutChan := make(chan string)
@@ -52,11 +52,12 @@ func main() {
 
 	go LiftControl(buttonPressedChan, floorSensorTriggeredChan, liftInstructionChan)
 
-	go Network(IDInput, outgoingMessageChan, incomingMessageChan, outgoingBackupChan, incomingBackupChan, peerChangeChan)
+	go Network(IDInput, outgoingMessageChan, incomingMessageChan, outgoingBackupChan, incomingBackupChan, aliveLiftChangeChan)
 
 	go Admin(IDInput, buttonPressedChan, floorSensorTriggeredChan,
-		liftInstructionChan, outgoingMessageChan, incomingMessageChan, outgoingBackupChan, incomingBackupChan, peerChangeChan, startTimerChan, timeOutChan)
+		liftInstructionChan, outgoingMessageChan, incomingMessageChan, outgoingBackupChan, incomingBackupChan, aliveLiftChangeChan, startTimerChan, timeOutChan)
 
 	go Timer(startTimerChan, timeOutChan)
+
 	wg.Wait()
 }
