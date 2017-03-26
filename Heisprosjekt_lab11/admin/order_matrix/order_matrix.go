@@ -107,14 +107,14 @@ func OverwriteEverythingButInternalOrders(orders [][]int, liftID int, backupOrde
 		orders[BUTTON_CALL_DOWN][floor] = backupOrders[BUTTON_CALL_DOWN][floor]
 		for elev := 0; elev < MAX_N_LIFTS; elev++ {
 			if elev != liftID {
-				orders[BUTTON_COMMAND+liftID][floor] = backupOrders[BUTTON_COMMAND+elev][floor]
+				orders[BUTTON_COMMAND+elev][floor] = backupOrders[BUTTON_COMMAND+elev][floor]
 			} else { // Checks own inner orders in both own table in received backup. Taking any order that exists.
-				if orders[BUTTON_COMMAND+liftID][floor] == liftID+1 || backupOrders[BUTTON_COMMAND+elev][floor] == liftID+1 {
-					orders[BUTTON_COMMAND+liftID][floor] = liftID + 1
-				} else if orders[BUTTON_COMMAND+liftID][floor] == 0 || backupOrders[BUTTON_COMMAND+elev][floor] == 0 {
-					orders[BUTTON_COMMAND+liftID][floor] = 0
+				if orders[BUTTON_COMMAND+elev][floor] == elev+1 || backupOrders[BUTTON_COMMAND+elev][floor] == elev+1 {
+					orders[BUTTON_COMMAND+elev][floor] = elev + 1
+				} else if orders[BUTTON_COMMAND+elev][floor] == 0 || backupOrders[BUTTON_COMMAND+elev][floor] == 0 {
+					orders[BUTTON_COMMAND+elev][floor] = 0
 				} else {
-					orders[BUTTON_COMMAND+liftID][floor] = -1
+					orders[BUTTON_COMMAND+elev][floor] = -1
 				}
 			}
 		}
