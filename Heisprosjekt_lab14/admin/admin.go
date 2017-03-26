@@ -14,7 +14,7 @@ import (
 
 func Admin(IDInput int, buttonPressedChan <-chan Button, floorSensorTriggeredChan <-chan int,
 	liftInstructionChan chan<- Instruction, outgoingMessageChan chan<- Message, incomingMessageChan <-chan Message, outgoingBackupChan chan<- BackUp, incomingBackupChan <-chan BackUp,
-	peerChangeChan <-chan Peer, startTimerChan chan<- string, timeOutChan <-chan string) {
+	aliveLiftChangeChan <-chan ChangedLift, startTimerChan chan<- string, timeOutChan <-chan string) {
 
 	const stuckTimeout = 10 * time.Second
 
@@ -31,30 +31,31 @@ func Admin(IDInput int, buttonPressedChan <-chan Button, floorSensorTriggeredCha
 	stuckTimer := time.NewTimer(stuckTimeout)
 
 
-searchingForBackupLoop:
+searchingForInitialBackupLoop:
 	for {
 		select {
 
 		case backup := <-incomingBackupChan:
 			orders = backup.Orders
 			properties = backup.Properties
+
 			// No one else would have the right information about our properties, so reset those:
 			SetState(properties, ID, INIT)
 			SetDirn(properties, ID, DIRN_DOWN)
 			SetLastFloor(properties, ID, NOT_VALID)
-			break searchingForBackupLoop
+			break searchingForInitialBackupLoop
 
-		case peerMsg := <-peerChangeChan:
-			switch peerMsg.Change {
+		case liftChange := <-aliveLiftChangeChan:
+			switch liftChange.TypeOfChange {
 			case "New": //Må sjekke om peer allerede er i aliveLifts
-				fmt.Println("Adm: Får inn New peer. Det er: ", peerMsg.ChangedPeer)
+				fmt.Println("Adm: Får inn New peer. Det er: ", liftChange.IDofChangedLift)
 				outgoingBackupChan <- BackUp{"IWasAlone", ID, orders, properties}
-				aliveLifts = append(aliveLifts, peerMsg.ChangedPeer)
+				aliveLifts = append(aliveLifts, liftChange.IDofChangedLift)
 				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] }) //Bare problem på mac?
 
 			case "Lost":
 				for i, lostPeer := range aliveLifts {
-					if lostPeer == peerMsg.ChangedPeer {
+					if lostPeer == liftChange.IDofChangedLift {
 						aliveLifts = append(aliveLifts[:i], aliveLifts[i+1:]...)
 						if lostPeer != ID {
 							DeassignOrders(orders, lostPeer)
@@ -65,7 +66,7 @@ searchingForBackupLoop:
 			}
 
 		case <-time.After(5 * time.Second):
-			break searchingForBackupLoop
+			break searchingForInitialBackupLoop
 		}
 	}
 
@@ -73,13 +74,13 @@ initLoop:
 	for {
 		select {
 
-		case f := <-floorSensorTriggeredChan:
+		case floor := <-floorSensorTriggeredChan:
 			fmt.Println("Adm: initLoop, floor Sensor") // NOTE: NEEDS DIRN_DOWN SET FURTHER UP.
-			SetLastFloor(properties, ID, f)
-			liftInstructionChan <- Instruction{"Set floor indicator light", NOT_VALID, f, ON}
+			SetLastFloor(properties, ID, floor)
+			liftInstructionChan <- Instruction{"Set floor indicator light", NOT_VALID, floor, ON}
 			liftInstructionChan <- Instruction{"Open the door", DIRN_STOP, NOT_VALID, NOT_VALID}
 			startTimerChan <- "Opening the door now"
-			outgoingMessageChan <- Message{"Stopped", ID, f, NOT_VALID}
+			outgoingMessageChan <- Message{"Stopped", ID, floor, NOT_VALID}
 			stuckTimer.Stop()
 			break initLoop
 
@@ -91,11 +92,11 @@ initLoop:
 		}
 	}
 
+
 	for {
 		select {
 
 		case button := <-buttonPressedChan:
-
 			if !isButtonAlreadyRegistrered(orders, button, ID) {
 				outgoingMessageChan <- Message{"ButtonPressed", ID, button.Floor, button.ButtonType}
 			}
@@ -292,22 +293,22 @@ initLoop:
 				}
 			}
 
-		case peerMsg := <-peerChangeChan:
-			switch peerMsg.Change {
+		case liftChange := <-aliveLiftChangeChan:
+			switch liftChange.TypeOfChange {
 			case "New":
-				fmt.Println("Adm: Får inn New peerID. Det er: ", peerMsg.ChangedPeer)
+				fmt.Println("Adm: Får inn New peerID. Det er: ", liftChange.IDofChangedLift)
 				if len(aliveLifts) <= 1 {
 					outgoingBackupChan <- BackUp{"IWasAlone", ID, orders, properties}
 				} else {
 					outgoingBackupChan <- BackUp{"IWasNotAlone", ID, orders, properties}
 				}
-				aliveLifts = append(aliveLifts, peerMsg.ChangedPeer)
+				aliveLifts = append(aliveLifts, liftChange.IDofChangedLift)
 				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] })
 
 			case "Lost":
-				fmt.Println("Adm: Får inn Lost peer. Det er: ", peerMsg.ChangedPeer)
+				fmt.Println("Adm: Får inn Lost peer. Det er: ", liftChange.IDofChangedLift)
 				for i, lostPeer := range aliveLifts {
-					if lostPeer == peerMsg.ChangedPeer {
+					if lostPeer == liftChange.IDofChangedLift {
 						aliveLifts = append(aliveLifts[:i], aliveLifts[i+1:]...)
 						if lostPeer != ID {
 							DeassignOrders(orders, lostPeer)
@@ -336,24 +337,23 @@ func findNewOrder(orders [][]int, ID int, properties []int, aliveLifts []int, st
 	liftInstructionChan chan<- Instruction, outgoingMessageChan chan<- Message) {
 	fmt.Println("Adm: Inne i findNewOrder. Orders, properties: ", orders, properties)
 
-	newDirn, dest := CalculateNextOrder(orders, ID, properties, aliveLifts)
+	newDirection, destination := CalculateNextOrder(orders, ID, properties, aliveLifts)
 
-	// Default dest and newDirn returned has to be undefined (-2,-2)
-	fmt.Println("Adm: Got new direction", newDirn, dest)
-	if newDirn == DIRN_STOP {
+	fmt.Println("Adm: Got new direction", newDirection, destination)
+	if newDirection == DIRN_STOP {
 		fmt.Println("Adm: I DIRN_STOP for findNewOrder")
-		AssignOrders(orders, dest, ID)
+		AssignOrders(orders, destination, ID)
 		liftInstructionChan <- Instruction{"Set floor indicator light", NOT_VALID, GetLastFloor(properties, ID), ON}
 		liftInstructionChan <- Instruction{"Open the door", DIRN_STOP, NOT_VALID, NOT_VALID}
 		startTimerChan <- "Opening the door now"
 		outgoingMessageChan <- Message{"Stopped", ID, GetLastFloor(properties, ID), NOT_VALID}
-	} else if newDirn == DIRN_DOWN || newDirn == DIRN_UP {
+	} else if newDirection == DIRN_DOWN || newDirection == DIRN_UP {
 		fmt.Println("Adm: I DIRN_DOWN/DIRN_UP for findNewOrder")
-		AssignOrders(orders, dest, ID)
-		outgoingMessageChan <- Message{"NewOrder", ID, dest, NOT_VALID} // ID, "Moving, desting (new order)", etasje
-	} else { // newDirn == -2 (NOT_VALID)
+		AssignOrders(orders, destination, ID)
+		outgoingMessageChan <- Message{"NewOrder", ID, destination, NOT_VALID}
+	} else {
 		fmt.Println("Adm: I IDLE for findNewOrder")
-		outgoingMessageChan <- Message{"Idle", ID, dest, NOT_VALID} // ID, "IDLE", etasje
+		outgoingMessageChan <- Message{"Idle", ID, destination, NOT_VALID}
 	}
 	fmt.Println("Adm: På vei ut av findNewOrder. Orders, properties: ", orders, properties)
 }
