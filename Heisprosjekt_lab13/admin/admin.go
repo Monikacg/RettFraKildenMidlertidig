@@ -36,6 +36,10 @@ searchingForBackupLoop:
 		case backup := <-backupRChan:
 			orders = backup.Orders
 			properties = backup.Properties
+			// No one else would have the right information about our properties, so reset those:
+			SetState(properties, ID, INIT)
+			SetDirn(properties, ID, DIRN_DOWN)
+			SetLastFloor(properties, ID, NOT_VALID)
 			break searchingForBackupLoop
 
 		case peerMsg := <-peerChangeChan:
