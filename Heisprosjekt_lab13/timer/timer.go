@@ -33,7 +33,7 @@ func startDoorOpenTimer(timeOutChan chan<- string) {
 func startStuckWaitingPeriodTimer(timeOutChan chan<- string) {
 	for {
 		select {
-		case <-time.After(15 * time.Second):
+		case <-time.After(10 * time.Second):
 			timeOutChan <- "Time to exit STUCK state and see if the engine is working"
 			return
 		}

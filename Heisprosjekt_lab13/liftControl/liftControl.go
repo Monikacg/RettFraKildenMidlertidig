@@ -50,7 +50,7 @@ func checkSignals(buttonChan chan<- Button, floorSensorChan chan<- int) {
 		//fmt.Println("checkSignals")
 		checkIfButtonsArePressed(buttonChan)
 		checkFloorSensors(floorSensorChan)
-		time.Sleep(70 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond) //70
 	}
 }
 

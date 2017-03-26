@@ -2,46 +2,24 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"strconv"
 	"sync"
-	"fmt"
 
 	. "./admin"
 	. "./definitions"
 	. "./driver"
-	. "./lift_control"
+	. "./liftControl"
 	. "./network"
 	. "./timer"
 )
-
-/*
-ID = 0: 129.241.187.158 (vanlig pc)
-ID = 1: 129.241.187.156 (bak oss)
-ID = 2: 129.241.187.159 (til høyre)
-
-
-For ID = 1:
-ssh Student@129.241.187.156
-scp -r /home/student/Desktop/RettFraKilden2-master/Heisprosjekt_lab4 Student@129.241.187.156:/home/student/Desktop/RettFraKilden2-master/Heisprosjekt_lab4
-Endre plassering så du finner main.go
-go run main.go -id=1
-
-ITK2o17-kyb
-
-For ID = 2:
-ssh Student@129.241.187.159
-scp -r /home/student/Desktop/RettFraKilden2-master/Heisprosjekt_lab4 Student@129.241.187.159:/home/student/Desktop/RettFraKilden2-master/Heisprosjekt_lab4
-Endre plassering så du finner main.go
-go run main.go -id=2
-
-*/
 
 func main() {
 
 	//go run main.go -id=our_id
 
-	buttonChan := make(chan Button)   // Se under
-	floorSensorChan := make(chan int) // Endre til asynkron, siden du kan trykke inn en ytre knapp, så ville ha en lengre ned? test
+	buttonChan := make(chan Button)
+	floorSensorChan := make(chan int)
 
 	localOrderChan := make(chan Order) //----""-----
 
