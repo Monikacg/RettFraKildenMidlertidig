@@ -101,16 +101,39 @@ func CopyInnerOrders(target [][]int, targetLift int, source [][]int, sourceLift 
 	}
 }
 
-func OverwriteEverythingButInternalOrders(orders [][]int, lift int, backupOrders [][]int) {
+func OverwriteEverythingButInternalOrders(orders [][]int, liftID int, backupOrders [][]int) {
 	for floor := 0; floor < N_FLOORS; floor++ {
 		orders[BUTTON_CALL_UP][floor] = backupOrders[BUTTON_CALL_UP][floor]
-		orders[BUTTON_CALL_DOWN][floor] = backupOrders[BUTTON_CALL_DOWN][floor] // Index [1][]
+		orders[BUTTON_CALL_DOWN][floor] = backupOrders[BUTTON_CALL_DOWN][floor]
 		for elev := 0; elev < MAX_N_LIFTS; elev++ {
-			if elev != lift {
-				orders[BUTTON_COMMAND+lift][floor] = backupOrders[BUTTON_CALL_DOWN][floor] // Index[2+lift][]
+			if elev != liftID {
+				orders[BUTTON_COMMAND+liftID][floor] = backupOrders[BUTTON_COMMAND+elev][floor]
+			} else { // Checks own inner orders in both own table in received backup. Taking any order that exists.
+				if orders[BUTTON_COMMAND+liftID][floor] == liftID+1 || backupOrders[BUTTON_COMMAND+elev][floor] == liftID+1 {
+					orders[BUTTON_COMMAND+liftID][floor] = liftID + 1
+				} else if orders[BUTTON_COMMAND+liftID][floor] == 0 || backupOrders[BUTTON_COMMAND+elev][floor] == 0 {
+					orders[BUTTON_COMMAND+liftID][floor] = 0
+				} else {
+					orders[BUTTON_COMMAND+liftID][floor] = -1
+				}
 			}
 		}
 	}
+}
+
+func AnyAssignedOrdersLeft(orders [][]int, liftID int) bool {
+	for floor := 0; floor < N_FLOORS; floor++ {
+		if orders[BUTTON_CALL_UP][floor] == liftID+1 {
+			return true
+		}
+		if orders[BUTTON_CALL_DOWN][floor] == liftID+1 {
+			return true
+		}
+		if orders[BUTTON_COMMAND+liftID][floor] == liftID+1 {
+			return true
+		}
+	}
+	return false
 }
 
 // Trengs en funksjon som tar vekk én assigned order? Trur det! Reavaluate orders hver gang når etasje/knappetrykk.

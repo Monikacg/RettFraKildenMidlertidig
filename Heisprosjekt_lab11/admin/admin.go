@@ -89,7 +89,9 @@ searchingForBackupLoop:
 				for i, lostPeer := range aliveLifts {
 					if lostPeer == peerMsg.ChangedPeer {
 						aliveLifts = append(aliveLifts[:i], aliveLifts[i+1:]...)
-						DeassignOuterOrders(orders, lostPeer)
+						if lostPeer != ID {
+							DeassignOuterOrders(orders, lostPeer)
+						}
 						break
 					}
 				}
@@ -302,49 +304,51 @@ initLoop:
 
 		case backupMsg := <-backupRChan:
 			fmt.Println("Adm: Fått inn melding fra backupRChan, melding: ", backupMsg)
-			switch backupMsg.Info {
-			case "IWasAlone":
-				fmt.Println("Adm: Fått ny backup (I was alone). Backup melding: ")
-				fmt.Println(backupMsg)
-				fmt.Println("Adm: Orders before backupcommands: ", orders)
-				// Legg inn alle INDRE ordre for backupMsg.SenderID
-				CopyInnerOrders(orders, ID, backupMsg.Orders, backupMsg.SenderID)
-				// Ta inn properties for backupMsg.SenderID
-				SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
+			if ID != backupMsg.SenderID {
+				switch backupMsg.Info {
+				case "IWasAlone":
+					fmt.Println("Adm: Fått ny backup (I was alone). Backupmelding: ", backupMsg)
+					fmt.Println("Adm: Orders before backupcommands: ", orders)
+					// Legg inn alle INDRE ordre for backupMsg.SenderID
+					CopyInnerOrders(orders, ID, backupMsg.Orders, backupMsg.SenderID)
+					// Ta inn properties for backupMsg.SenderID
+					SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
 
-				fmt.Println("Adm: Orders after backupcommands: ", orders)
+					fmt.Println("Adm: Orders after backupcommands: ", orders)
 
-			case "IWasNotAlone":
-				fmt.Println("Adm: Fått ny backup (I was NOT alone). Backup melding: ")
-				fmt.Println(backupMsg)
-				fmt.Println("Adm: Orders before backupcommands: ", orders)
-				// Skriv over alt i orders minus egne indre ordre.
-				OverwriteEverythingButInternalOrders(orders, ID, backupMsg.Orders)
+				case "IWasNotAlone":
+					fmt.Println("Adm: Fått ny backup (I was NOT alone). Backupmelding: ", backupMsg)
+					fmt.Println("Adm: Orders before backupcommands: ", orders)
+					// Skriv over alt i orders minus egne indre ordre.
+					OverwriteEverythingButInternalOrders(orders, ID, backupMsg.Orders)
 
-				// Behold egne properties, skriv over resten.
-				SetPropertiesFromBackup(properties, ID, backupMsg.Properties)
-				fmt.Println("Adm: Orders after backupcommands: ", orders)
+					// Behold egne properties, skriv over resten.
+					SetPropertiesFromBackup(properties, ID, backupMsg.Properties)
+					fmt.Println("Adm: Orders after backupcommands: ", orders)
 
+				}
 			}
 
 		case peerMsg := <-peerChangeChan:
 			switch peerMsg.Change {
 			case "New":
 				fmt.Println("Adm: Får inn New peerID. Det er: ", peerMsg.ChangedPeer)
-				if len(aliveLifts) == 1 {
+				if len(aliveLifts) <= 1 {
 					backupTChan <- BackUp{"IWasAlone", ID, orders, properties}
 				} else {
 					backupTChan <- BackUp{"IWasNotAlone", ID, orders, properties}
 				}
 				aliveLifts = append(aliveLifts, peerMsg.ChangedPeer)
-				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] }) //MÅ FIKSES. NB NB NB
+				sort.Slice(aliveLifts, func(i, j int) bool { return aliveLifts[i] < aliveLifts[j] })
 
 			case "Lost":
 				fmt.Println("Adm: Får inn Lost peer. Det er: ", peerMsg.ChangedPeer)
 				for i, lostPeer := range aliveLifts {
 					if lostPeer == peerMsg.ChangedPeer {
 						aliveLifts = append(aliveLifts[:i], aliveLifts[i+1:]...)
-						DeassignOuterOrders(orders, lostPeer)
+						if lostPeer != ID {
+							DeassignOuterOrders(orders, lostPeer)
+						}
 						if GetState(properties, ID) == IDLE {
 							fmt.Println("Adm: State == IDLE, en annen heis er død => kan være nye ordre")
 							findNewOrder(orders, ID, properties, aliveLifts, startTimerChan, localOrderChan, adminTChan)
