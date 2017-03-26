@@ -23,13 +23,13 @@ func main() {
 
 	liftInstructionChan := make(chan Instruction)
 
-	adminTChan := make(chan Message, 100) // Må være asynkron
-	adminRChan := make(chan Message, 100) // ----"-------"---
-	backupTChan := make(chan BackUp, 100)
-	backupRChan := make(chan BackUp, 100)
-	peerChangeChan := make(chan Peer, 100)
+	outgoingMessageChan := make(chan Message, 100) // Må være asynkron
+	incomingMessageChan := make(chan Message, 100) // ----"-------"---
 
-	peerInitializeChan := make(chan CurrPeers, 100)
+	incomingBackupChan := make(chan BackUp, 100)
+	outgoingBackupChan := make(chan BackUp, 100)
+
+	peerChangeChan := make(chan Peer, 100)
 
 	startTimerChan := make(chan string)
 	timeOutChan := make(chan string)
@@ -52,11 +52,10 @@ func main() {
 
 	go LiftControl(buttonPressedChan, floorSensorTriggeredChan, liftInstructionChan)
 
-	go Network(IDInput, adminTChan, adminRChan, backupTChan, backupRChan, peerChangeChan, peerInitializeChan)
+	go Network(IDInput, outgoingMessageChan, incomingMessageChan, outgoingBackupChan, incomingBackupChan, peerChangeChan)
 
 	go Admin(IDInput, buttonPressedChan, floorSensorTriggeredChan,
-		liftInstructionChan, adminTChan, adminRChan, backupTChan, backupRChan, peerChangeChan,
-		peerInitializeChan, startTimerChan, timeOutChan)
+		liftInstructionChan, outgoingMessageChan, incomingMessageChan, outgoingBackupChan, incomingBackupChan, peerChangeChan, startTimerChan, timeOutChan)
 
 	go Timer(startTimerChan, timeOutChan)
 	wg.Wait()

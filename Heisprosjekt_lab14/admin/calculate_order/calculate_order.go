@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	. "../../definitions"
-	. "../lift_properties"
+	. "../properties"
 )
 
 func CalculateNextOrder(orders [][]int, ID int, properties []int, aliveLifts []int) (int, int) {
