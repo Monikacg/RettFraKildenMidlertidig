@@ -12,13 +12,6 @@ import (
 	. "./order_matrix"
 )
 
-/* Kan kanskje trengs hvis ikke sort.Slice lightens up. Fungerte på sanntidssal, så kanskje greit?
-^Bare problem med versjon: sort.Slice kommer bare inn i go 1.8.
-type ActiveLift struct {
-	LiftID int
-}
-*/
-
 func Admin(IDInput int, buttonChan <-chan Button, floorSensorChan <-chan int,
 	localOrderChan chan<- Order, adminTChan chan<- Udp, adminRChan <-chan Udp, backupTChan chan<- BackUp, backupRChan <-chan BackUp,
 	peerChangeChan <-chan Peer, peerInitializeChan <-chan CurrPeers, startTimerChan chan<- string, timeOutChan <-chan string) {
@@ -28,6 +21,11 @@ func Admin(IDInput int, buttonChan <-chan Button, floorSensorChan <-chan int,
 	ID := IDInput
 	var aliveLifts []int
 	lastBackUpRecevied := make([]BackUp, MAX_N_LIFTS)
+	for i := range lastBackUpRecevied {
+		lastBackUpRecevied[i].Orders = InitializeOrders()
+		lastBackUpRecevied[i].Properties = InitializeLiftProperties()
+	}
+
 	//aliveLifts = append(aliveLifts, ID)
 	//For test
 	//aliveLifts = append(aliveLifts, 1)
