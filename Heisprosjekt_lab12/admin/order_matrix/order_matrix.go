@@ -95,33 +95,32 @@ func CompleteOrder(orders [][]int, floor, lift int) { // Akkurat nå har med all
 	orders[BUTTON_COMMAND+lift][floor] = -1 // Index[2+lift][]
 }
 */
-func CopyInnerOrders(target [][]int, source [][]int, sourceLift int) {
+func CopyInnerOrders(target [][]int, source [][]int) {
 	for floor := 0; floor < N_FLOORS; floor++ {
-		if target[BUTTON_COMMAND+sourceLift][floor] == sourceLift+1 || source[BUTTON_COMMAND+sourceLift][floor] == sourceLift+1 {
-			target[BUTTON_COMMAND+sourceLift][floor] = sourceLift + 1
-		} else if target[BUTTON_COMMAND+sourceLift][floor] == 0 || source[BUTTON_COMMAND+sourceLift][floor] == 0 {
-			target[BUTTON_COMMAND+sourceLift][floor] = 0
-		} else {
-			target[BUTTON_COMMAND+sourceLift][floor] = -1
+		for elev := 0; elev < MAX_N_LIFTS; elev++ {
+			if target[BUTTON_COMMAND+elev][floor] == elev+1 || source[BUTTON_COMMAND+elev][floor] == elev+1 {
+				target[BUTTON_COMMAND+elev][floor] = elev + 1
+			} else if target[BUTTON_COMMAND+elev][floor] == 0 || source[BUTTON_COMMAND+elev][floor] == 0 {
+				target[BUTTON_COMMAND+elev][floor] = 0
+			} else {
+				target[BUTTON_COMMAND+elev][floor] = -1
+			}
 		}
 	}
 }
 
-func OverwriteEverythingButInternalOrders(orders [][]int, liftID int, backupOrders [][]int) {
+func OverwriteEverythingButInternalOrders(orders [][]int, backupOrders [][]int) {
 	for floor := 0; floor < N_FLOORS; floor++ {
 		orders[BUTTON_CALL_UP][floor] = backupOrders[BUTTON_CALL_UP][floor]
 		orders[BUTTON_CALL_DOWN][floor] = backupOrders[BUTTON_CALL_DOWN][floor]
 		for elev := 0; elev < MAX_N_LIFTS; elev++ {
-			if elev != liftID {
-				orders[BUTTON_COMMAND+elev][floor] = backupOrders[BUTTON_COMMAND+elev][floor]
-			} else { // Checks own inner orders in both own table in received backup. Taking any order that exists.
-				if orders[BUTTON_COMMAND+elev][floor] == elev+1 || backupOrders[BUTTON_COMMAND+elev][floor] == elev+1 {
-					orders[BUTTON_COMMAND+elev][floor] = elev + 1
-				} else if orders[BUTTON_COMMAND+elev][floor] == 0 || backupOrders[BUTTON_COMMAND+elev][floor] == 0 {
-					orders[BUTTON_COMMAND+elev][floor] = 0
-				} else {
-					orders[BUTTON_COMMAND+elev][floor] = -1
-				}
+			// Checks own inner orders in both own table in received backup. Taking any order that exists.
+			if orders[BUTTON_COMMAND+elev][floor] == elev+1 || backupOrders[BUTTON_COMMAND+elev][floor] == elev+1 {
+				orders[BUTTON_COMMAND+elev][floor] = elev + 1
+			} else if orders[BUTTON_COMMAND+elev][floor] == 0 || backupOrders[BUTTON_COMMAND+elev][floor] == 0 {
+				orders[BUTTON_COMMAND+elev][floor] = 0
+			} else {
+				orders[BUTTON_COMMAND+elev][floor] = -1
 			}
 		}
 	}
