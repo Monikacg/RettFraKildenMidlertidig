@@ -46,18 +46,11 @@ func checkForOrdersFromAdmin(localOrderChan <-chan Order) { // Nytt navn
 }
 
 func checkSignals(buttonChan chan<- Button, floorSensorChan chan<- int) {
-	i := 0
 	for {
 		//fmt.Println("checkSignals")
-		if i%4 == 0 {
-			checkIfButtonsArePressed(buttonChan)
-		}
+		checkIfButtonsArePressed(buttonChan)
 		checkFloorSensors(floorSensorChan)
 		time.Sleep(70 * time.Millisecond)
-		i++
-		if i == 4000 {
-			i = 0
-		}
 	}
 }
 
