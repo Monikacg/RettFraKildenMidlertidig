@@ -26,7 +26,8 @@ func Admin(IDInput int, buttonChan <-chan Button, floorSensorChan <-chan int,
 	orders := InitializeOrders()
 	properties := InitializeLiftProperties()
 	ID := IDInput
-	aliveLifts := make([]int, 0, MAX_N_LIFTS) // Kan tydeligvis bare skrive var aliveLifts []int og la golang fikse det selv...
+	var aliveLifts []int
+	lastBackUpRecevied := make([]BackUp, MAX_N_LIFTS)
 	//aliveLifts = append(aliveLifts, ID)
 	//For test
 	//aliveLifts = append(aliveLifts, 1)
@@ -305,27 +306,30 @@ initLoop:
 		case backupMsg := <-backupRChan:
 			fmt.Println("Adm: Fått inn melding fra backupRChan, melding: ", backupMsg)
 			if ID != backupMsg.SenderID {
-				switch backupMsg.Info {
-				case "IWasAlone":
-					fmt.Println("Adm: Fått ny backup (I was alone). Backupmelding: ", backupMsg)
-					fmt.Println("Adm: Orders before backupcommands: ", orders)
-					// Legg inn alle INDRE ordre for backupMsg.SenderID
-					CopyInnerOrders(orders, ID, backupMsg.Orders, backupMsg.SenderID)
-					// Ta inn properties for backupMsg.SenderID
-					SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
+				if !backupsAreIdentical(backupMsg, lastBackUpRecevied[backupMsg.SenderID]) {
+					lastBackUpRecevied[backupMsg.SenderID] = backupMsg
+					switch backupMsg.Info {
+					case "IWasAlone":
+						fmt.Println("Adm: Fått ny backup (I was alone). Backupmelding: ", backupMsg)
+						fmt.Println("Adm: Orders before backupcommands: ", orders)
+						// Legg inn alle INDRE ordre for backupMsg.SenderID
+						CopyInnerOrders(orders, ID, backupMsg.Orders, backupMsg.SenderID)
+						// Ta inn properties for backupMsg.SenderID
+						SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
 
-					fmt.Println("Adm: Orders after backupcommands: ", orders)
+						fmt.Println("Adm: Orders after backupcommands: ", orders)
 
-				case "IWasNotAlone":
-					fmt.Println("Adm: Fått ny backup (I was NOT alone). Backupmelding: ", backupMsg)
-					fmt.Println("Adm: Orders before backupcommands: ", orders)
-					// Skriv over alt i orders minus egne indre ordre.
-					OverwriteEverythingButInternalOrders(orders, ID, backupMsg.Orders)
+					case "IWasNotAlone":
+						fmt.Println("Adm: Fått ny backup (I was NOT alone). Backupmelding: ", backupMsg)
+						fmt.Println("Adm: Orders before backupcommands: ", orders)
+						// Skriv over alt i orders minus egne indre ordre.
+						OverwriteEverythingButInternalOrders(orders, ID, backupMsg.Orders)
 
-					// Behold egne properties, skriv over resten.
-					SetPropertiesFromBackup(properties, ID, backupMsg.Properties)
-					fmt.Println("Adm: Orders after backupcommands: ", orders)
+						// Behold egne properties, skriv over resten.
+						SetPropertiesFromBackup(properties, ID, backupMsg.Properties)
+						fmt.Println("Adm: Orders after backupcommands: ", orders)
 
+					}
 				}
 			}
 
@@ -395,6 +399,22 @@ func isButtonAlreadyRegistrered(orders [][]int, b Button, ID int) bool {
 		}
 	} else {
 		if orders[b.Button_dir][b.Floor] == -1 {
+			return false
+		}
+	}
+	return true
+}
+
+func backupsAreIdentical(backup1 BackUp, backup2 BackUp) bool {
+	for i := range backup1.Orders {
+		for j := range backup1.Orders[i] {
+			if backup1.Orders[i][j] != backup2.Orders[i][j] {
+				return false
+			}
+		}
+	}
+	for k := range backup1.Properties {
+		if backup1.Properties[k] != backup2.Properties[k] {
 			return false
 		}
 	}
