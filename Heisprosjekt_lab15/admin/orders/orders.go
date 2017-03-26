@@ -85,7 +85,7 @@ func ExtractInnerOrders(target [][]int, source [][]int) {
 	}
 }
 
-func OverwriteEverythingButInternalOrders(orders [][]int, backupOrders [][]int) {
+func CopyOrdersFromBackup(orders [][]int, backupOrders [][]int) {
 	for floor := 0; floor < N_FLOORS; floor++ {
 		orders[BUTTON_CALL_UP][floor] = backupOrders[BUTTON_CALL_UP][floor]
 		orders[BUTTON_CALL_DOWN][floor] = backupOrders[BUTTON_CALL_DOWN][floor]
