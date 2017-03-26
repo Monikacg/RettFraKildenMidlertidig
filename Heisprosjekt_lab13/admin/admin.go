@@ -320,6 +320,13 @@ initLoop:
 						break
 					}
 				}
+				if len(aliveLifts) == 0 { // You are alone, you are the one who lost your connection. Turn off the outer lights.
+					for floor := 0; floor < N_FLOORS; floor++ {
+						localOrderChan <- Order{"LIGHT", BUTTON_CALL_UP, floor, OFF}
+						localOrderChan <- Order{"LIGHT", BUTTON_CALL_DOWN, floor, OFF}
+					}
+				}
+
 			}
 
 		}
