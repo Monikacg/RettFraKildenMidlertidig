@@ -37,6 +37,8 @@ func checkForOrdersFromAdmin(localOrderChan <-chan Order) { // Nytt navn
 				} else {
 					Elev_set_motor_direction(msg.Order)
 				}
+			case "Entered STUCK state, stopping engine":
+				Elev_set_motor_direction(DIRN_STOP)
 			case "FLOOR_LIGHT":
 				Elev_set_floor_indicator(msg.Floor)
 				fmt.Println("Lift: Floor light set", msg.Floor)
