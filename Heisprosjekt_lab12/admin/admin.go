@@ -16,7 +16,6 @@ func Admin(IDInput int, buttonChan <-chan Button, floorSensorChan <-chan int,
 	localOrderChan chan<- Order, adminTChan chan<- Udp, adminRChan <-chan Udp, backupTChan chan<- BackUp, backupRChan <-chan BackUp,
 	peerChangeChan <-chan Peer, peerInitializeChan <-chan CurrPeers, startTimerChan chan<- string, timeOutChan <-chan string) {
 
-	var stuckTimer *time.Timer
 	const stuckTimeout = 10 * time.Second
 
 	orders := InitializeOrders()
@@ -29,7 +28,7 @@ func Admin(IDInput int, buttonChan <-chan Button, floorSensorChan <-chan int,
 		lastBackUpRecevied[i].Orders = InitializeOrders()
 		lastBackUpRecevied[i].Properties = InitializeLiftProperties()
 	}
-
+	stuckTimer := time.NewTimer(stuckTimeout)
 searchingForBackupLoop:
 	for {
 		select {
@@ -75,11 +74,13 @@ initLoop:
 			localOrderChan <- Order{"DIRN", DIRN_STOP, NOT_VALID, ON}
 			startTimerChan <- "Opening the door now"
 			adminTChan <- Udp{ID, "Stopped", f, NOT_VALID}
+			stuckTimer.Stop()
 			break initLoop
 
 		default:
 			SetState(properties, ID, MOVING)
 			localOrderChan <- Order{"DIRN", DIRN_DOWN, NOT_VALID, NOT_VALID}
+			stuckTimer = time.NewTimer(stuckTimeout)
 			break initLoop
 		}
 	}
@@ -168,15 +169,14 @@ initLoop:
 					CompleteOrder(orders, m.Floor, ID)
 					fmt.Println("Adm: Orders at ", m.Floor, " when I get stopped back: ", orders)
 					fmt.Println("Adm: Fått Stopped tilbake. Properties: ", properties)
-					if AnyAssignedOrdersLeft(orders, m.ID) {
-						stuckTimer = time.NewTimer(stuckTimeout)
-					} else {
+					if !AnyAssignedOrdersLeft(orders, m.ID) {
 						stuckTimer.Stop()
 					}
 
 				case "DrovePast":
 					SetLastFloor(properties, m.ID, m.Floor)
 					SetState(properties, m.ID, MOVING)
+					stuckTimer = time.NewTimer(stuckTimeout)
 					fmt.Println("Adm: DrovePast kommer rundt, setter lastFloor/state=MOVING. Properties: ", properties)
 				case "NewOrder":
 					// Gjør alt før, er bare ack her. Skal det i det hele tatt komme tilbake hit?
