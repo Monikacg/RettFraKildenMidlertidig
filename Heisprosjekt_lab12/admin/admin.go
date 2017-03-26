@@ -268,7 +268,7 @@ initLoop:
 						fmt.Println("Adm: Fått ny backup (I was alone). Backupmelding: ", backupMsg)
 						fmt.Println("Adm: Orders before backupcommands: ", orders)
 						// Legg inn alle INDRE ordre for backupMsg.SenderID
-						CopyInnerOrders(orders, ID, backupMsg.Orders, backupMsg.SenderID)
+						CopyInnerOrders(orders, backupMsg.Orders, backupMsg.SenderID)
 						// Ta inn properties for backupMsg.SenderID
 						SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
 
