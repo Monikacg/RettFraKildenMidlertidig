@@ -171,6 +171,8 @@ initLoop:
 					fmt.Println("Adm: Fått Stopped tilbake. Properties: ", properties)
 					if !AnyAssignedOrdersLeft(orders, m.ID) {
 						stuckTimer.Stop()
+					} else {
+						stuckTimer = time.NewTimer(stuckTimeout)
 					}
 
 				case "DrovePast":
@@ -192,6 +194,7 @@ initLoop:
 					SetState(properties, m.ID, STUCK)
 					DeassignOuterOrders(orders, m.ID)
 					startTimerChan <- "Entered STUCK state"
+					localOrderChan <- Order{"Entered STUCK state, stopping engine", DIRN_STOP, NOT_VALID, NOT_VALID}
 
 				case "Idle":
 					// Samme som over. Nada.
@@ -238,8 +241,8 @@ initLoop:
 					fmt.Println("Adm: Properties inne i samme case: ", properties)
 
 				case "I'm stuck":
-					DeassignOuterOrders(orders, m.ID)
 					SetState(properties, m.ID, STUCK)
+					DeassignOuterOrders(orders, m.ID)
 					if GetState(properties, ID) == IDLE {
 						fmt.Println("Adm: State == IDLE når en annen er STUCK ")
 						findNewOrder(orders, ID, properties, aliveLifts, startTimerChan, localOrderChan, adminTChan)
