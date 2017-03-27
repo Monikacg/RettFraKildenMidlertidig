@@ -240,12 +240,12 @@ initLoop:
 					lastBackUpRecevied[backupMsg.SenderID] = backupMsg
 					switch backupMsg.Info {
 					case "I was isolated":
-						// ExtractInnerOrders will give orders the highest valued inner order it can find (assigned order > existing order > no order)
+						// ExtractInnerOrders will give orders the highest valued inner order it can find (assigned order > unassigned order > no order)
 						ExtractInnerOrders(orders, backupMsg.Orders)
 						SetSingleLiftProperties(properties, backupMsg.SenderID, backupMsg.Properties)
 
 					case "I was part of a group":
-						// CopyOrdersFromBackup will give orders the highest valued inner order it can find (assigned order > existing order > no order), and copy the outer orders.
+						// CopyOrdersFromBackup will give orders the highest valued inner order it can find (assigned order > unassigned order > no order), and copy the outer orders.
 						// Copying outer orders instead of taking the highest value since the ones in the group might have finished the order
 						// while you were isolated. If you were part of the same group, you will have the same orders anyway.
 						CopyOrdersFromBackup(orders, backupMsg.Orders)
